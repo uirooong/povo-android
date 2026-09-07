@@ -7,7 +7,6 @@ import jp.povo.manager.core.PovoAccountClient
 import jp.povo.manager.core.PovoSession
 import jp.povo.manager.core.SessionStore
 import jp.povo.manager.core.json.BillsParser
-import jp.povo.manager.core.json.ProfileParser
 import jp.povo.manager.core.json.UsageParser
 import jp.povo.manager.core.model.BillsDocument
 import jp.povo.manager.core.model.DataBucket
@@ -243,11 +242,6 @@ class AccountRepository private constructor(
             ensureFreshToken(client, session)
 
             val profile = client.getProfile()
-            // 開通日 does not change, so this extra request is paid once per
-            // account and never again. Best-effort: it is a detail on an info
-            // panel, and losing a usage reading over it would be a bad trade.
-            val activationDate = stored?.activationDate
-                ?: runCatching { ProfileParser.activationDate(client.getProfileJson()) }.getOrNull()
             val usage = UsageParser.parse(client.getPlanUsageJson())
             val bills = if (includeBills) BillsParser.parse(client.getBillsInfoJson()) else null
             // Quilt pages are the only source for these. Their failure must not
@@ -271,7 +265,6 @@ class AccountRepository private constructor(
             persist(
                 session, client, profile, usage, bills, toppings, purchases,
                 billsAttempted = includeBills,
-                activationDate = activationDate,
                 payment = payment,
             )
             RefreshOutcome(session.accountId, RefreshResult.OK)
@@ -316,7 +309,6 @@ class AccountRepository private constructor(
         toppings: List<Topping>? = null,
         purchases: List<Purchase>? = null,
         billsAttempted: Boolean = true,
-        activationDate: String? = null,
         payment: PaymentMethod? = null,
     ) {
         val now = System.currentTimeMillis()
@@ -326,9 +318,6 @@ class AccountRepository private constructor(
                 session = session.copy(sin = client.serviceInstanceNumber()),
                 sortOrder = existing?.sortOrder ?: db.accounts().all().size,
             ).copy(
-                // Carried rather than re-read: the profile struct does not
-                // model it, and it is fetched at most once per account.
-                activationDate = activationDate ?: existing?.activationDate,
                 // Carried over on a throttled run, so a refresh that skipped
                 // the profile page does not blank the card on screen.
                 paymentMasked = payment?.maskedNumber ?: existing?.paymentMasked,
@@ -510,6 +499,12 @@ private fun UserProfile.toEntity(session: PovoSession, sortOrder: Int) = Account
     planName = telcoInfo?.billingInfo?.planName,
     status = telcoInfo?.status,
     customerName = telcoInfo?.customerName,
+    // `activation_date` is this line's; `initial_activation_date` is the
+    // account's first ever, which differs only if the line was re-issued. The
+    // service sends UTC midnight, so the time is dropped rather than converted
+    // — shifting it into JST would move the date forward a day.
+    activationDate = (telcoInfo?.activationDate ?: telcoInfo?.initialActivationDate)
+        ?.substringBefore('T')?.takeIf(String::isNotBlank),
     birthDate = dob?.let { d ->
         val y = d.year ?: return@let null
         val m = d.month ?: return@let null

@@ -448,6 +448,15 @@ class ProtocolSpikeViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
         val body = s.customBody.ifBlank { "{}" }
+        if (s.customPath.startsWith("/")) {
+            // Same rule as the GET side. The web-front routes need it: they
+            // have no `mobile` segment, so the localized builder cannot reach
+            // them at all.
+            run("POST ${s.customPath} (raw)") {
+                ensureClient().postRawJson(s.customPath, body)
+            }
+            return
+        }
         val version = s.customVersion.ifBlank { "v4" }
         val prefix = s.customPrefix.ifBlank { null }
         run("POST ${prefix.orEmpty()}/$version/jp/ja/mobile/${s.customPath}") {

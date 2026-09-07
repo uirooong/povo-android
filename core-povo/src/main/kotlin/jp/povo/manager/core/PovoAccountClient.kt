@@ -123,20 +123,6 @@ class PovoAccountClient private constructor(
      */
     suspend fun getProfile(): UserProfile = call { it.getProfile() }
 
-    /**
-     * The same payload [getProfile] parses, unparsed.
-     *
-     * povo-core's [UserProfile] does not model every field, and one the app
-     * wants — `telco_info.activation_date`, the line's 開通日 — is among the
-     * missing. Rather than a core change, this reads the raw document; it is
-     * the identical endpoint, so nothing new is being asked of the service.
-     * Note it does *not* update the client's cached SIN or user type the way
-     * [getProfile] does, so it is a supplement to that call, not a substitute.
-     */
-    suspend fun getProfileJson(): String = call {
-        it.getJson(PROFILE_PATH, USER_SERVICE_PREFIX, "v4", "ja")
-    }
-
     suspend fun getPlanUsageJson(): String = call { it.getPlanUsageJson() }
 
     suspend fun getPlanDetailsJson(): String = call { it.getPlanDetailsJson() }
@@ -164,15 +150,10 @@ class PovoAccountClient private constructor(
     suspend fun downloadBillPdf(billId: String): ByteArray = call { it.downloadBillPdf(billId) }
 
     /**
-     * Quilt page — the layout document that carries the *subscribed* toppings.
-     *
-     * Quilt routes are not localized: they sit at `/api/v1/quilt/page/{page}`
-     * with no `/jp/{locale}/mobile/` segment, so the ordinary [getJson] escape
-     * hatch cannot address them and the server answers 404.
+     * A Quilt page. Now a typed call in povo-core, which owns the fact that
+     * these routes are not localized and live at `/api/v1/quilt/page/{page}`.
      */
-    suspend fun getQuiltPageJson(page: String): String = call {
-        it.getRawJson("/api/v1/quilt/page/$page")
-    }
+    suspend fun getQuiltPageJson(page: String): String = call { it.getQuiltPageJson(page) }
 
     /**
      * `telco/dashboard` — carries the boost purchase history under
@@ -209,14 +190,7 @@ class PovoAccountClient private constructor(
         locale: String = "ja",
     ): String = call { it.getJson(relativePath, prefix, version, locale) }
 
-    /**
-     * The POST counterpart of [getJson].
-     *
-     * povo-core has had `post_json` all along; it simply was not surfaced here
-     * because nothing needed it. The web-front session route
-     * (`webfront/users/session`) does, and it follows the same localized path
-     * shape, so no core change is required to reach it.
-     */
+    /** The POST counterpart of [getJson], for localized routes. */
     suspend fun postJson(
         relativePath: String,
         bodyJson: String,
@@ -225,16 +199,20 @@ class PovoAccountClient private constructor(
         locale: String = "ja",
     ): String = call { it.postJson(relativePath, prefix, version, locale, bodyJson) }
 
+    /**
+     * The POST counterpart of [getRawJson].
+     *
+     * The web-front surface (the `webfront` prefix) has no `mobile` segment,
+     * so the localized builders cannot express it, and its routes are
+     * POST-only. Note Kotlin block comments nest, so the glob is spelled out
+     * rather than written literally.
+     */
+    suspend fun postRawJson(absolutePath: String, bodyJson: String): String =
+        call { it.postRawJson(absolutePath, bodyJson) }
+
     override fun close() = client.close()
 
     companion object {
-        /**
-         * Route of the profile document, matching povo-core's own
-         * `get_profile()` exactly — see [getProfileJson].
-         */
-        private const val USER_SERVICE_PREFIX = "/api/v3/user-service"
-        private const val PROFILE_PATH = "users?include_telco=true"
-
         /**
          * The dashboard card-priority map the official app sends
          * (`assets/dashboardmap/dashboard_request_v2`).
