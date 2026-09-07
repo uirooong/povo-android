@@ -47,6 +47,13 @@ jobs:
             exit 1
           fi
 
+      - name: Make the Gradle wrapper executable
+        # The repository is worked on from Windows, where git does not track the
+        # executable bit — so gradlew can arrive here mode 644 and the runner
+        # fails with "Permission denied" before Gradle is ever reached. The mode
+        # is fixed in the index too; this is the guard against it regressing.
+        run: chmod +x ./gradlew
+
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
