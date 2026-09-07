@@ -1,0 +1,86 @@
+name: Dev build
+
+# Every push builds a debug APK and attaches it to the run. Debug rather than
+# release on purpose: it carries the protocol-verification screen, which is the
+# tool for diagnosing an endpoint change and is compiled out of release builds.
+on:
+  push:
+    branches: ['**']
+    tags-ignore: ['**']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: dev-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # povo-core is a submodule and the Rust core comes from it; without
+          # this the Gradle build has nothing to compile.
+          submodules: recursive
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Rust with the Android targets
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+
+      - name: Cache cargo and the Rust build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.cargo/bin
+            povo-core/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('povo-core/**/Cargo.lock', 'povo-core/**/Cargo.toml') }}
+          restore-keys: cargo-${{ runner.os }}-
+
+      - name: Install cargo-ndk
+        run: cargo ndk --version || cargo install cargo-ndk --locked
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Point the build at the runner's SDK and NDK
+        # The build resolves the SDK from local.properties first and only then
+        # from the environment, and cargo-ndk needs ANDROID_NDK_HOME explicitly.
+        run: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+          NDK_DIR=$(ls -d "$ANDROID_SDK_ROOT"/ndk/* | sort -V | tail -1)
+          echo "ANDROID_NDK_HOME=$NDK_DIR" >> "$GITHUB_ENV"
+          echo "using NDK $NDK_DIR"
+
+      - name: Build the debug APK
+        # All three ABIs, so the artifact installs on a phone and an emulator.
+        run: ./gradlew :app:assembleDebug -Ppovo.abis=arm64-v8a,armeabi-v7a,x86_64
+
+      - name: Test and lint
+        run: ./gradlew test :app:lintDebug -Ppovo.skipRustBuild=true
+
+      - name: Attach the APK to this run
+        uses: actions/upload-artifact@v4
+        with:
+          name: povo-manager-debug-${{ github.sha }}
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+      - name: Attach the reports when something fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-${{ github.sha }}
+          path: |
+            app/build/reports/**
+            core-povo/build/reports/**
+          if-no-files-found: ignore

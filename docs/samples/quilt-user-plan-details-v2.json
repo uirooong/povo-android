@@ -1,0 +1,40 @@
+{
+  "_id": "user-plan-details-v2",
+  "analytics": null,
+  "metadata": {},
+  "widgets": [
+    {
+      "type": "list",
+      "components": [
+        {
+          "type": "povo-tile-plan-header",
+          "data": {
+            "title": "データ"
+          }
+        },
+        {
+          "type": "povo-tile-plan-detail",
+          "data": {
+            "name": {
+              "title": "【セール】データ追加120GB（365日間）"
+            },
+            "remaining": {
+              "title": "残量",
+              "value": "60.00GB / 120.00GB"
+            },
+            "expiry": {
+              "title": "有効期限",
+              "value": "2099年 12月 31日 午後11:59\n残り 999 日間"
+            }
+          }
+        },
+        {
+          "type": "povo-tile-divider",
+          "data": {
+            "color": "primary"
+          }
+        }
+      ]
+    }
+  ]
+}

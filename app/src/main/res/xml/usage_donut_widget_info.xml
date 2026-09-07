@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Sized to occupy a single 1x1 cell by default. The layout is derived from the
+  real tile size at runtime (SizeMode.Exact), so the ring and its readout shrink
+  to fit that cell and grow again if the user stretches the widget - which is
+  why resizing stays enabled and the minimums are as low as the platform's 40dp
+  floor allows.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="40dp"
+    android:minHeight="40dp"
+    android:minResizeWidth="40dp"
+    android:minResizeHeight="40dp"
+    android:targetCellWidth="1"
+    android:targetCellHeight="1"
+    android:configure="jp.povo.manager.widget.AccountPickerActivity"
+    android:description="@string/donut_widget_description"
+    android:initialLayout="@layout/glance_default_loading_layout"
+    android:previewImage="@mipmap/ic_launcher"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen" />

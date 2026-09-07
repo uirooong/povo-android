@@ -1,0 +1,18 @@
+{
+  "code": 0,
+  "data": {
+    "code": "ML3ANYTS"
+  },
+  "share": {
+    "banner_text": "Spread your love for Circles.Life to your friends and family!",
+    "banner_title": "referral_controller_banner_title",
+    "facebook_body": "referral_controller_facebook_body",
+    "facebook_title": "referral_controller_facebook_title",
+    "message_body": "referral_controller_message_bodyhttps://pjp-shop.povo.jp?reset=true&referral=ML3ANYTS",
+    "permission_popup_description": "Spread your love for Circles.Life to your friends and family!",
+    "permission_popup_title": "referral_controller_permission_popup_title",
+    "referral_code_title": "あなたの紹介コード：",
+    "remind_body": "referral_controller_remind_bodyhttps://pjp-shop.povo.jp?reset=true&referral=ML3ANYTS",
+    "share_button_text": "referral_controller_share_button_text"
+  }
+}

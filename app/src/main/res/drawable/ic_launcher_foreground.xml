@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Traced from icon.svg ("01 / Lemon P") without re-drawing it.
+
+  The viewport is kept at the artwork's own 512 units so the path data is the
+  SVG's verbatim, and the group carries the same translate the SVG's <g> did
+  rather than baking the offset into every coordinate. At 1:1 the mark spans
+  x 146..366, y 112..400, which sits inside an adaptive icon's safe zone
+  (the central 313 of 512), so no rescaling is needed either.
+
+  The rounded background rect from the SVG is deliberately not here: the
+  launcher masks the background layer to its own shape, and @color/ic_launcher_background
+  supplies the fill.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <group
+        android:translateX="-6"
+        android:translateY="4">
+        <path
+            android:fillColor="#242335"
+            android:pathData="M 256 108 A 104 104 0 0 0 152 212 A 104 104 0 0 0 152 212.00977 L 152 241 L 152 277 L 152 367 C 152 383.066 164.934 396 181 396 C 197.066 396 210 383.066 210 367 L 210 305.27344 A 104 104 0 0 0 256 316 A 104 104 0 0 0 360 212 A 104 104 0 0 0 256 108 z M 256 164 A 48 48 0 0 1 304 212 A 48 48 0 0 1 256 260 A 48 48 0 0 1 208 212 A 48 48 0 0 1 256 164 z" />
+        <!-- The SVG's <circle cx=349 cy=365 r=23>, as a path. -->
+        <path
+            android:fillColor="#6750A4"
+            android:pathData="M 326 365 a 23 23 0 1 0 46 0 a 23 23 0 1 0 -46 0 z" />
+    </group>
+</vector>

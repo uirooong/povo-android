@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- povo brand yellow, taken from icon.svg's background rect. -->
+    <color name="ic_launcher_background">#FFFFE34B</color>
+</resources>

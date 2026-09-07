@@ -1,0 +1,317 @@
+{
+  "au_services_status": {
+    "action": {
+      "data": {
+        "popup": {
+          "button": {
+            "action": {
+              "data": {
+                "toggle_carrier_billing": {
+                  "body": {
+                    "auID_number": "kddi_1dspr70fhh8xjmvmbikz11kq2e1",
+                    "enable": false
+                  }
+                }
+              },
+              "type": "toggle_carrier_billing"
+            },
+            "title": "解除する"
+          },
+          "description": "au IDとの連携を解除すると、auユーザー向けに提供されているサービスの一部が受けられなくなります。",
+          "title": "au IDとの連携を解除しますか？"
+        }
+      },
+      "type": "popup"
+    },
+    "additional_information": {
+      "title": "現在連携中のau ID: 09098765432"
+    },
+    "header": "au IDを連携しますか？",
+    "is_on": true,
+    "is_user_interaction_enabled": true,
+    "learn_more": {
+      "action": {
+        "data": {
+          "web_view": {
+            "link": "https://faq.povo.jp/faq/show/48?site_domain=default"
+          }
+        },
+        "type": "web_view"
+      },
+      "title": "詳細はこちら"
+    },
+    "title": "povoアカウントとau IDを連携すると、auユーザー向けに提供されているサービスの一部が受けられるようになります。"
+  },
+  "banner": {
+    "button": {
+      "action": {
+        "data": {
+          "web_view": {
+            "link": "https://povo.jp/support/invoice/index.html"
+          }
+        },
+        "type": "web_view"
+      },
+      "title": "詳しくはこちら"
+    },
+    "header": "",
+    "title": "従量課金の料金（通話料・SMS送信料）とトッピング（継続購入）料金のご請求額は9月10日〜12日頃に<b>plan.user@example.com</b>にお知らせします。"
+  },
+  "billing": {
+    "content": {
+      "action": {
+        "data": {
+          "deeplink": {
+            "link": "https://circlescare.app.link/bills"
+          }
+        },
+        "type": "deeplink"
+      },
+      "description": "請求予定額や過去のご利用明細の確認ができます。",
+      "icon_url": "https://mobile-app.circles.life/mobile/common/BILL.png"
+    },
+    "header": {
+      "action": {
+        "data": {
+          "deeplink": {
+            "link": "https://circlescare.app.link/bills"
+          }
+        },
+        "type": "deeplink"
+      },
+      "meta": {
+        "color": "#535353"
+      },
+      "value": "請求書の発行"
+    }
+  },
+  "code": 0,
+  "instant_charges": {
+    "header": "今月のお支払い済金額",
+    "list": [],
+    "paid": {
+      "postfix": "JPY",
+      "prefix": "円",
+      "value": 0
+    }
+  },
+  "past_bills": {
+    "header": "過去の請求書",
+    "list": [
+      {
+        "actions": [
+          {
+            "data": {
+              "link": ""
+            },
+            "type": "pdf"
+          },
+          {
+            "data": {
+              "link": ""
+            },
+            "type": "service_call"
+          }
+        ],
+        "billId": "REG0000000000000",
+        "subtitle": "0円 - 支払い済み",
+        "subtitleSuffix": "支払い済み",
+        "subtitle_suffix": "支払い済み",
+        "time": 1785509999000,
+        "title": "2026年7月 - 2026年8月",
+        "total": {
+          "postfix": "JPY",
+          "prefix": "円",
+          "value": 0
+        },
+        "type": "PAID"
+      },
+      {
+        "actions": [
+          {
+            "data": {
+              "link": ""
+            },
+            "type": "pdf"
+          },
+          {
+            "data": {
+              "link": ""
+            },
+            "type": "service_call"
+          }
+        ],
+        "billId": "REG0000000000000",
+        "subtitle": "0円 - 支払い済み",
+        "subtitleSuffix": "支払い済み",
+        "subtitle_suffix": "支払い済み",
+        "time": 1782831599000,
+        "title": "2026年6月 - 2026年7月",
+        "total": {
+          "postfix": "JPY",
+          "prefix": "円",
+          "value": 0
+        },
+        "type": "PAID"
+      },
+      {
+        "actions": [
+          {
+            "data": {
+              "link": ""
+            },
+            "type": "pdf"
+          },
+          {
+            "data": {
+              "link": ""
+            },
+            "type": "service_call"
+          }
+        ],
+        "billId": "REG0000000000000",
+        "subtitle": "20円 - 支払い済み",
+        "subtitleSuffix": "支払い済み",
+        "subtitle_suffix": "支払い済み",
+        "time": 1780239599000,
+        "title": "2026年5月 - 2026年6月",
+        "total": {
+          "postfix": "JPY",
+          "prefix": "円",
+          "value": 20
+        },
+        "type": "PAID"
+      },
+      {
+        "actions": [
+          {
+            "data": {
+              "link": ""
+            },
+            "type": "pdf"
+          },
+          {
+            "data": {
+              "link": ""
+            },
+            "type": "service_call"
+          }
+        ],
+        "billId": "REG0000000000000",
+        "subtitle": "80円 - 支払い済み",
+        "subtitleSuffix": "支払い済み",
+        "subtitle_suffix": "支払い済み",
+        "time": 1777561199000,
+        "title": "2026年4月 - 2026年5月",
+        "total": {
+          "postfix": "JPY",
+          "prefix": "円",
+          "value": 80
+        },
+        "type": "PAID"
+      },
+      {
+        "actions": [
+          {
+            "data": {
+              "link": ""
+            },
+            "type": "pdf"
+          },
+          {
+            "data": {
+              "link": ""
+            },
+            "type": "service_call"
+          }
+        ],
+        "billId": "REG0000000000000",
+        "subtitle": "300円 - 支払い済み",
+        "subtitleSuffix": "支払い済み",
+        "subtitle_suffix": "支払い済み",
+        "time": 1774969199000,
+        "title": "2026年3月 - 2026年4月",
+        "total": {
+          "postfix": "JPY",
+          "prefix": "円",
+          "value": 300
+        },
+        "type": "PAID"
+      },
+      {
+        "actions": [
+          {
+            "data": {
+              "link": ""
+            },
+            "type": "pdf"
+          },
+          {
+            "data": {
+              "link": ""
+            },
+            "type": "service_call"
+          }
+        ],
+        "billId": "REG0000000000000",
+        "subtitle": "12345円 - 支払い済み",
+        "subtitleSuffix": "支払い済み",
+        "subtitle_suffix": "支払い済み",
+        "time": 1772290799000,
+        "title": "2026年2月 - 2026年3月",
+        "total": {
+          "postfix": "JPY",
+          "prefix": "円",
+          "value": 12345
+        },
+        "type": "PAID"
+      }
+    ]
+  },
+  "upcoming_bill": {
+    "disclaimer": {
+      "action": {
+        "data": {
+          "web_view": {
+            "link": "https://faq.povo.jp/faq/show/43"
+          }
+        },
+        "type": "web_view"
+      },
+      "title": "こちらは請求予定額です。"
+    },
+    "header": "ご請求予定額",
+    "list": [
+      {
+        "amount": {
+          "postfix": "JPY",
+          "prefix": "円",
+          "value": 0
+        },
+        "label": "10月月額基本料金(前払い)"
+      },
+      {
+        "amount": {
+          "postfix": "JPY",
+          "prefix": "円",
+          "value": 0
+        },
+        "label": "国際通話**"
+      },
+      {
+        "amount": {
+          "postfix": "JPY",
+          "prefix": "円",
+          "value": 0
+        },
+        "label": "国際SMS**"
+      }
+    ],
+    "title": "10月10日～12日頃に確定します。価格は全て税込です。**は免税対象です。",
+    "total": {
+      "postfix": "JPY",
+      "prefix": "円",
+      "value": 0
+    }
+  }
+}

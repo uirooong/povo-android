@@ -1,0 +1,27 @@
+{
+  "_id": "order-history",
+  "analytics": null,
+  "metadata": {},
+  "widgets": [
+    {
+      "type": "list",
+      "components": [
+        {
+          "type": "tile-status-card",
+          "data": {
+            "order_id": "40100000000000000",
+            "order_status": "success",
+            "status": "注文完了",
+            "purchase_date": "2026年 2月 28日",
+            "products": [
+              {
+                "product_name": "【セール】データ追加120GB（365日間）",
+                "price": "12,345円"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      The ring is drawn onto a bitmap with Canvas, which cannot reach
+      GlanceTheme's colours, so its two colours come from resources instead.
+      Day/night variants keep it readable on either wallpaper.
+    -->
+    <color name="widget_donut_track">#E4E1EC</color>
+    <color name="widget_donut_fill">#6750A4</color>
+</resources>

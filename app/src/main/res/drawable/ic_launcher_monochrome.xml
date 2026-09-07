@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The themed-icon layer (API 33+). Same geometry as ic_launcher_foreground,
+  flattened to one colour: the system recolours this layer to match the user's
+  wallpaper palette and only reads its alpha, so a two-tone drawable would lose
+  the distinction anyway and the accent dot would silently merge into the mark.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <group
+        android:translateX="-6"
+        android:translateY="4">
+        <path
+            android:fillColor="#000000"
+            android:pathData="M 256 108 A 104 104 0 0 0 152 212 A 104 104 0 0 0 152 212.00977 L 152 241 L 152 277 L 152 367 C 152 383.066 164.934 396 181 396 C 197.066 396 210 383.066 210 367 L 210 305.27344 A 104 104 0 0 0 256 316 A 104 104 0 0 0 360 212 A 104 104 0 0 0 256 108 z M 256 164 A 48 48 0 0 1 304 212 A 48 48 0 0 1 256 260 A 48 48 0 0 1 208 212 A 48 48 0 0 1 256 164 z" />
+        <path
+            android:fillColor="#000000"
+            android:pathData="M 326 365 a 23 23 0 1 0 46 0 a 23 23 0 1 0 -46 0 z" />
+    </group>
+</vector>

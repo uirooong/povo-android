@@ -1,0 +1,3 @@
+[submodule "povo-core"]
+	path = povo-core
+	url = https://github.com/uirooong/povo-core

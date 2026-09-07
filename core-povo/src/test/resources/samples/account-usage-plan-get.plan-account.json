@@ -1,0 +1,329 @@
+{
+  "calls": null,
+  "callsIdd": {
+    "calls_idd": []
+  },
+  "data": {
+    "basic": {
+      "left": 0,
+      "plan_kb": 0,
+      "prorated": 0,
+      "prorated_kb": 0,
+      "section": "DATA",
+      "unit": "kilobytes",
+      "used": 0
+    },
+    "bonus": {
+      "left": 0,
+      "section": "BONUS",
+      "unit": "kilobytes",
+      "used": 0
+    },
+    "boost": {
+      "left": 62914560.37109375,
+      "section": "BOOST",
+      "section_min_value": 1048576,
+      "unit": "kilobytes",
+      "used": 62914560.62890625
+    },
+    "extra": {
+      "left": 0,
+      "plan_kb": 0,
+      "prorated": 0,
+      "prorated_kb": 0,
+      "section": "DATA",
+      "unit": "kilobytes",
+      "used": 0
+    },
+    "plus": {
+      "left": 0,
+      "plan_kb": 0,
+      "prorated": 0,
+      "prorated_kb": 0,
+      "section": "",
+      "unit": "kilobytes",
+      "used": 0
+    },
+    "promotion_text": {
+      "line1": "Bonus",
+      "line2": "0 MB"
+    }
+  },
+  "other": {
+    "basic": {
+      "calls": {
+        "base_left": 0,
+        "base_used": 0,
+        "extra_left": 0,
+        "extra_used": 0,
+        "left": 0,
+        "prorated_mins": 0,
+        "prorated_mins_left": 0,
+        "unit_type": "seconds",
+        "used": 0
+      },
+      "sms": {
+        "base_left": 0,
+        "base_used": 0,
+        "extra_left": 0,
+        "extra_used": 0,
+        "left": 0,
+        "unit_type": "sms",
+        "used": 0
+      }
+    },
+    "boost": {
+      "calls": {
+        "left": 0,
+        "unit_type": "seconds",
+        "used": 0
+      },
+      "sms": {
+        "left": 0,
+        "unit_type": "sms",
+        "used": 0
+      }
+    },
+    "pay_as_you_go": {
+      "calls": {
+        "incoming": {
+          "price_total": {
+            "prefix": "¥",
+            "value": 0
+          },
+          "unit_type": "seconds",
+          "value": 0
+        },
+        "outgoing": {
+          "price_total": {
+            "prefix": "¥",
+            "value": 0
+          },
+          "unit_type": "seconds",
+          "value": 0
+        },
+        "total": {
+          "price_per_unit": {
+            "prefix": "¥",
+            "unit": "minutes",
+            "value": 0
+          },
+          "price_total": {
+            "prefix": "¥",
+            "value": 0
+          },
+          "unit_type": "seconds",
+          "value": 0
+        },
+        "visible": true
+      },
+      "calls_idd": {
+        "incoming": {
+          "price_total": {
+            "prefix": "¥",
+            "value": 0
+          },
+          "unit_type": "seconds",
+          "value": 0
+        },
+        "outgoing": {
+          "price_total": {
+            "prefix": "¥",
+            "value": 0
+          },
+          "unit_type": "seconds",
+          "value": 0
+        },
+        "total": {
+          "price_total": {
+            "prefix": "¥",
+            "value": 0
+          },
+          "unit_type": "seconds",
+          "value": 0
+        },
+        "visible": true
+      },
+      "calls_roam": {
+        "incoming": {
+          "price_total": {
+            "prefix": "¥",
+            "value": 0
+          },
+          "unit_type": "seconds",
+          "value": 0
+        },
+        "outgoing": {
+          "price_total": {
+            "prefix": "¥",
+            "value": 0
+          },
+          "unit_type": "seconds",
+          "value": 0
+        },
+        "total": {
+          "price_total": {
+            "prefix": "¥",
+            "value": 0
+          },
+          "unit_type": "seconds",
+          "value": 0
+        },
+        "visible": true
+      },
+      "data_roam": {
+        "total": {
+          "price_actual": {
+            "prefix": "¥",
+            "value": 0
+          },
+          "price_total": {
+            "prefix": "¥",
+            "value": 0
+          },
+          "unit_type": "kilobytes",
+          "value": 0
+        },
+        "visible": true
+      },
+      "sms": {
+        "total": {
+          "price_per_unit": {
+            "prefix": "¥",
+            "unit": "sms",
+            "value": 3.3
+          },
+          "price_total": {
+            "prefix": "¥",
+            "value": 0
+          },
+          "unit_type": "sms",
+          "value": 0
+        },
+        "visible": true
+      },
+      "sms_idd": {
+        "total": {
+          "price_total": {
+            "prefix": "¥",
+            "value": 0
+          },
+          "unit_type": "sms",
+          "value": 0
+        },
+        "visible": true
+      },
+      "sms_roam": {
+        "total": {
+          "price_total": {
+            "prefix": "¥",
+            "value": 0
+          },
+          "unit_type": "sms",
+          "value": 0
+        },
+        "visible": true
+      }
+    }
+  },
+  "roamingIdd": {
+    "boost": {
+      "data_roam": []
+    },
+    "payg": {
+      "calls_idd": {
+        "incoming": {
+          "price_total": {
+            "prefix": "¥",
+            "value": 0
+          },
+          "unit_type": "seconds",
+          "value": 0
+        },
+        "outgoing": {
+          "price_total": {
+            "prefix": "¥",
+            "value": 0
+          },
+          "unit_type": "seconds",
+          "value": 0
+        },
+        "total": {
+          "price_total": {
+            "prefix": "¥",
+            "value": 0
+          },
+          "unit_type": "seconds",
+          "value": 0
+        },
+        "visible": true
+      },
+      "calls_roam": {
+        "incoming": {
+          "price_total": {
+            "prefix": "¥",
+            "value": 0
+          },
+          "unit_type": "seconds",
+          "value": 0
+        },
+        "outgoing": {
+          "price_total": {
+            "prefix": "¥",
+            "value": 0
+          },
+          "unit_type": "seconds",
+          "value": 0
+        },
+        "total": {
+          "price_total": {
+            "prefix": "¥",
+            "value": 0
+          },
+          "unit_type": "seconds",
+          "value": 0
+        },
+        "visible": true
+      },
+      "data_roam": {
+        "total": {
+          "price_actual": {
+            "prefix": "¥",
+            "value": 0
+          },
+          "price_total": {
+            "prefix": "¥",
+            "value": 0
+          },
+          "unit_type": "kilobytes",
+          "value": 0
+        },
+        "visible": true
+      },
+      "sms_idd": {
+        "total": {
+          "price_total": {
+            "prefix": "¥",
+            "value": 0
+          },
+          "unit_type": "sms",
+          "value": 0
+        },
+        "visible": true
+      },
+      "sms_roam": {
+        "total": {
+          "price_total": {
+            "prefix": "¥",
+            "value": 0
+          },
+          "unit_type": "sms",
+          "value": 0
+        },
+        "visible": true
+      }
+    }
+  },
+  "sms": null,
+  "type": "callsIdd"
+}

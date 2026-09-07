@@ -1,0 +1,40 @@
+# Android / Gradle
+*.iml
+.gradle/
+/.idea/
+.DS_Store
+/build
+**/build/
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Rust
+/povo-core/target/
+
+# Build artifacts generated from povo-core: jniLibs and uniffi Kotlin bindings
+# are regenerated on every build (see core-povo/build.gradle.kts).
+**/src/main/jniLibs/
+core-povo/src/main/kotlin/uniffi/
+
+# ---------------------------------------------------------------------------
+# Never commit signing material. The release key is fixed — Android refuses to
+# upgrade an app whose signature changed — so losing it is bad, but committing
+# it is worse: anyone could then publish an APK that installs over this one.
+# It lives outside the working tree and reaches CI as a repository secret.
+# ---------------------------------------------------------------------------
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.base64
+keystore.properties
+signing.properties
+
+# Never commit real account data, tokens, or unmasked API captures. Everything
+# under docs/samples is masked by hand before being added; raw captures are
+# kept out entirely.
+/docs/samples/*.raw.json
+*.raw.json

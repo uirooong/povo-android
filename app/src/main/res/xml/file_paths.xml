@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Only the two cache subdirectories the app actually hands out are exposed:
+  invoice PDFs, which go to an external viewer, and downloaded update APKs,
+  which go to the platform installer. Exposing the whole cache would also
+  expose anything else that lands there.
+-->
+<paths>
+    <cache-path name="bills" path="bills/" />
+    <cache-path name="updates" path="updates/" />
+</paths>
