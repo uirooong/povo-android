@@ -170,6 +170,24 @@ class AccountRepository private constructor(
      * anonymously. Renewed here because a stale token would present the page
      * as logged out, which looks like a bug rather than an expiry.
      */
+    /**
+     * Replaces [id]'s stored token with one povo handed back through the web
+     * view.
+     *
+     * `shop.povo.jp` rotates the session by navigating to a `webfront://` URL
+     * carrying a new `auth_token`; the official app treats that as the new
+     * native session, so ignoring it would leave this app holding a token the
+     * service has already replaced. The cached client is dropped so the next
+     * call rebuilds with the new token.
+     */
+    suspend fun updateAuthToken(id: String, token: String) {
+        val session = session(id) ?: return
+        if (session.authToken == token) return
+        sessions.upsert(session.copy(authToken = token))
+        invalidateClient(id)
+        Log.i(TAG, "adopted a rotated token for $id")
+    }
+
     suspend fun freshAuthToken(id: String): String? {
         val session = session(id) ?: return null
         return withContext(Dispatchers.IO) {

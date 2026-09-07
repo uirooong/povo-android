@@ -7,16 +7,22 @@ povo-android を実装する過程で、povo-core 側にあると助かるもの
 
 | # | 項目 | 位置づけ |
 |---|---|---|
-| [0](#0-b-1-お支払い方法の変更フローを通す) | B-1（お支払い方法の変更）を通すための調査 | **未解決。核心は povo-core の外にある可能性が高い** |
-| [1](#1-post_raw_jsonabsolute_path-body_json) | `post_raw_json` | 上の前提。`webfront/*` に届かせるため |
-| [2](#2-telcoinfo-に-activation_date--initial_activation_date) | `TelcoInfo` に開通日 | 小。すでに回避策で動いている |
-| [3](#3-get_quilt_page_jsonpage-の型付きメソッド) | `get_quilt_page_json` | 小。整理の話 |
+| [0](#0-b-1-お支払い方法の変更フローを通す) | B-1（お支払い方法の変更）を通すための調査 | **✅ 解決。`research/WEBVIEW-AUTH.md` の回答で実装完了** |
+| [1](#1-post_raw_jsonabsolute_path-body_json) | `post_raw_json` | ✅ 実装済み。B-1 には結果的に不要だったが `webfront` 到達手段として有効 |
+| [2](#2-telcoinfo-に-activation_date--initial_activation_date) | `TelcoInfo` に開通日 | ✅ 実装済み・採用済み |
+| [3](#3-get_quilt_page_jsonpage-の型付きメソッド) | `get_quilt_page_json` | ✅ 実装済み・採用済み |
 | [4](#4-ドキュメントに死んでいることを記録してほしいルート) | 死んでいるルートの記録 | ドキュメントのみ |
 | [5](#5-未踏領域-webfront-と-oms-checkoutapp_settings) | 未踏領域の記録 | ドキュメントのみ |
 
 ---
 
 ## 0. B-1（お支払い方法の変更フローを通す）
+
+> **✅ 解決済み。** `research/WEBVIEW-AUTH.md`（公式 APK 1.70.0-JP の静的解析）
+> の回答どおり、**`device_id` を `auth_token` と一緒に初回リクエストのクエリに
+> 載せる**のが答えだった。Cookie・初回ヘッダ・localStorage 注入はいずれも公式
+> アプリも使っていない、という否定証拠が決定的だった。実機で認証済みページの
+> 表示を確認済み。以下は経緯の記録。
 
 ### 何をしたいか
 

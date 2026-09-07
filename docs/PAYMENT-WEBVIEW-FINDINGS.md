@@ -46,10 +46,47 @@ povo 公式アプリの「プロフィール → お支払い方法」に相当�
 
 ---
 
-## 2. 変更フロー（WebView）— 未完
+## 2. 変更フロー（WebView）— ✅ 解決
 
-現状: WebView は開くが `/web/login` → `/logged_out?reset=true` に飛ばされる。
-アプリはそれを検知して理由を表示し、スピナーのまま放置しないようにしてある。
+**答えは「`device_id` を `auth_token` と一緒に初回リクエストのクエリに載せる」。**
+Cookie・初回ヘッダ・localStorage 事前注入はいずれも公式アプリも使っていない
+（公式 APK 1.70.0-JP の静的解析による否定証拠。`WebViewFragment.onViewCreated`
+が `needs_xauth` のときに付ける一式）。
+
+実際に送る一式:
+
+```
+device_id, auth_token, webview=1, reset=true,
+use_native_ekyc_api=1, native=1, app_version, return_url(= exit_url)
+```
+
+`device_id` が要るのは実測とも符合する: `webfront/users/session` は
+アカウント本来の `X-Deviceid` でのみ認証を通し、ランダム値だと 403 を返した。
+サーバーがトークンとデバイスを紐付けている。
+
+実機で確認済み: 認証済みの「現在のお支払い方法」ページが開き、登録カードと
+クレジットカード / あと払い（ペイディ）の選択肢が表示される。
+
+あわせて実装したもの:
+
+- `webfront://` スキームの傍受。web 側がトークンを更新する公式チャンネルで、
+  `auth_token` を取り出して新しいセッションとして保存する。傍受しないと
+  WebView が解決できないスキームでロードエラーにもなる
+- JS ブリッジは `loadUrl` の前に登録（`getAppVersion` が無いと
+  "Device is not supported" になる）
+
+### 古い WebView では崩れる（アプリ側の問題ではない）
+
+エミュレータ（Chromium 83 / 2020年6月）ではアイコンが文字に重なる。
+flexbox の `gap` は Chromium 84 で入ったため、`gap` で間隔を取っている行が
+重なって潰れる。テストページで実測して確認した:
+
+```
+flex gap = 0px → NOT SUPPORTED | UA Chrome 83
+```
+
+実機の WebView は Play 経由で更新されるため現行版になり、この問題は出ない。
+アプリ側で回避すべきものではない。
 
 カード入力は `shop.povo.jp` 上で行われるので、**カード番号はアプリを通らない**。
 問題は「その SPA をログイン済み状態で開く」方法。

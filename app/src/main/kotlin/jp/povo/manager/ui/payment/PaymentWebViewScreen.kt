@@ -44,17 +44,12 @@ import java.util.concurrent.atomic.AtomicReference
  * it is marked `needs_xauth`, so it is given the account's token — without it
  * the page loads but shows nobody signed in.
  *
- * The token is handed over as an `auth_token` query parameter, which is what
- * the page actually reads — it pulls `urlParam("auth_token")` and sends it back
- * as `X-AUTH` on its own calls. Without it the page decides there is no session
- * and redirects to its own login form before it asks the bridge for anything.
+ * The session travels in the **query string of the initial request** — see
+ * [PaymentUrl], which assembles the same parameter set the official app does.
+ * A token in a URL is not ideal, but it is the only thing this page accepts,
+ * and the URL never leaves this WebView.
  *
- * A token in a URL is not ideal, but it is the mechanism povo's own app uses
- * and the URL never leaves this WebView. It is appended only for povo hosts,
- * which matters because a card change can legitimately hand off to a bank's
- * 3-D Secure page: those redirects must work, but must not carry the token.
- *
- * [PovoWebBridge] is installed alongside it because the page probes for the
+ * [PovoWebBridge] is installed before the load because the page probes for the
  * bridge during boot and treats its absence as an unsupported device.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -62,7 +57,9 @@ import java.util.concurrent.atomic.AtomicReference
 fun PaymentWebViewScreen(
     url: String,
     authToken: String?,
+    deviceId: String?,
     exitPath: String?,
+    onRotatedToken: (String) -> Unit,
     onDone: () -> Unit,
 ) {
     var loading by remember { mutableStateOf(true) }
@@ -91,7 +88,9 @@ fun PaymentWebViewScreen(
         Column(Modifier.fillMaxSize().padding(padding)) {
             if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
 
-            val target = remember(url, authToken) { withAuthToken(url, authToken) }
+            val target = remember(url, authToken, deviceId, exitPath) {
+                PaymentUrl.build(url, authToken, deviceId, exitPath)
+            }
 
             if (!isPovoUrl(url)) {
                 // Refuses to render a link that is not povo's. The URL is
@@ -142,9 +141,12 @@ fun PaymentWebViewScreen(
                             onLoadingChange = { loading = it },
                             onNavigate = { currentUrl.set(it) },
                             onSignedOut = { signedOut = true },
+                            onRotatedToken = onRotatedToken,
                             onExit = onDone,
                         )
-                        loadUrl(target, headersFor(authToken))
+                        // No extra headers: the official app issues a plain
+                        // load and puts everything in the query string.
+                        loadUrl(target)
                     }
                 },
                 // Released explicitly: a WebView outlives the composition
@@ -172,23 +174,15 @@ private fun WebView.configure() {
     settings.allowFileAccess = false
     settings.allowContentAccess = false
     settings.mediaPlaybackRequiresUserGesture = true
-}
-
-private fun headersFor(authToken: String?): Map<String, String> =
-    authToken?.takeIf(String::isNotBlank)?.let { mapOf(AUTH_HEADER to it) }.orEmpty()
-
-/**
- * Adds `auth_token` to a povo URL, which is how the page expects the session.
- *
- * Refuses to add it to anything else, and leaves an existing value alone rather
- * than appending a second copy.
- */
-internal fun withAuthToken(url: String, authToken: String?): String {
-    val token = authToken?.takeIf(String::isNotBlank) ?: return url
-    if (!isPovoUrl(url)) return url
-    val uri = runCatching { url.toUri() }.getOrNull() ?: return url
-    if (uri.getQueryParameter(TOKEN_PARAM) != null) return url
-    return uri.buildUpon().appendQueryParameter(TOKEN_PARAM, token).build().toString()
+    // Makes the page's own viewport meta authoritative, which is the right
+    // default for third-party responsive content. Note this does *not* fix the
+    // overlapping layout seen on an old WebView: that is the engine's age —
+    // flexbox `gap` only shipped in Chromium 84, and a WebView older than that
+    // collapses gap-spaced rows into overlapping elements. Measured 0px on an
+    // emulator running Chromium 83; devices get WebView from Play and are
+    // current, so this is not something the app can or should work around.
+    settings.useWideViewPort = true
+    settings.loadWithOverviewMode = true
 }
 
 /**
@@ -203,11 +197,16 @@ private class ExitWatchingClient(
     private val onLoadingChange: (Boolean) -> Unit,
     private val onNavigate: (String) -> Unit,
     private val onSignedOut: () -> Unit,
+    private val onRotatedToken: (String) -> Unit,
     private val onExit: () -> Unit,
 ) : WebViewClient() {
 
     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
         val target = request.url.toString()
+        // Token rotation comes as a navigation to a scheme no WebView can
+        // resolve, so it has to be swallowed here or it becomes a load error.
+        PaymentUrl.rotatedToken(target)?.let(onRotatedToken)
+        if (PaymentUrl.isRotation(target)) return true
         if (isExit(target)) {
             onExit()
             return true
@@ -265,7 +264,5 @@ internal fun isPovoUrl(url: String): Boolean {
 }
 
 private const val POVO_DOMAIN = "povo.jp"
-private const val AUTH_HEADER = "X-AUTH"
-private const val TOKEN_PARAM = "auth_token"
 private val SIGNED_OUT_PATHS = listOf("/web/login", "/logged_out")
 private const val TAG = "PovoPaymentWeb"

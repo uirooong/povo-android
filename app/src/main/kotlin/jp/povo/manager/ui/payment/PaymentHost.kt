@@ -9,18 +9,23 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import jp.povo.manager.data.AccountRepository
+import kotlinx.coroutines.launch
 
 /** What [PaymentWebViewScreen] needs, once it has been gathered. */
 private data class PaymentTarget(
     val url: String?,
     val exitPath: String?,
     val authToken: String?,
+    /** The account's own device id; the page needs it beside the token. */
+    val deviceId: String?,
 )
 
 /**
@@ -34,13 +39,15 @@ private data class PaymentTarget(
 @Composable
 fun PaymentHost(accountId: String, onDone: () -> Unit) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val repo = remember(context) { AccountRepository.get(context) }
     val target by produceState<PaymentTarget?>(initialValue = null, accountId) {
-        val repo = AccountRepository.get(context)
         val account = repo.accounts().firstOrNull { it.id == accountId }
         value = PaymentTarget(
             url = account?.paymentUpdateUrl,
             exitPath = account?.paymentExitUrl,
             authToken = repo.freshAuthToken(accountId),
+            deviceId = repo.session(accountId)?.deviceId,
         )
     }
 
@@ -68,7 +75,9 @@ fun PaymentHost(accountId: String, onDone: () -> Unit) {
             else -> PaymentWebViewScreen(
                 url = url,
                 authToken = t.authToken,
+                deviceId = t.deviceId,
                 exitPath = t.exitPath,
+                onRotatedToken = { token -> scope.launch { repo.updateAuthToken(accountId, token) } },
                 onDone = onDone,
             )
         }
