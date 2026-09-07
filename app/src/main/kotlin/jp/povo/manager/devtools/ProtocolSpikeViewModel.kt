@@ -61,6 +61,7 @@ class ProtocolSpikeViewModel(app: Application) : AndroidViewModel(app) {
         val customPath: String = "",
         val customPrefix: String = "",
         val customVersion: String = "",
+        val customBody: String = "",
     )
 
     data class Entry(val at: String, val label: String, val body: String, val ok: Boolean)
@@ -394,6 +395,9 @@ class ProtocolSpikeViewModel(app: Application) : AndroidViewModel(app) {
     fun onCustomPrefixChange(v: String) = _state.update { it.copy(customPrefix = v.trim()) }
     fun onCustomVersionChange(v: String) = _state.update { it.copy(customVersion = v.trim()) }
 
+    /** Not trimmed: a JSON body is passed through as typed. */
+    fun onCustomBodyChange(v: String) = _state.update { it.copy(customBody = v) }
+
     /**
      * Calls an arbitrary route through povo-core's generic `get_json`.
      *
@@ -405,6 +409,13 @@ class ProtocolSpikeViewModel(app: Application) : AndroidViewModel(app) {
      *
      * URL shape is `{prefix}/{version}/jp/{locale}/mobile/{path}`, so a quilt
      * page is prefix `/api`, version `v1`, path `quilt/page/...`.
+     *
+     * A path starting with `/` bypasses that construction entirely and is sent
+     * as-is. The formula cannot express every route: quilt pages are not
+     * localized at all, and some endpoints are only served under locale `en`
+     * (`layout/profile/info` answers 500 on `ja`), which the fixed `ja` above
+     * cannot reach. Typing the whole path is more use than a locale field
+     * because it covers shapes the formula does not have a slot for.
      */
     fun fetchCustom() {
         val s = _state.value
@@ -412,10 +423,35 @@ class ProtocolSpikeViewModel(app: Application) : AndroidViewModel(app) {
             log("任意エンドポイント", "パスを入力してください", ok = false)
             return
         }
+        if (s.customPath.startsWith("/")) {
+            run("GET ${s.customPath} (raw)") { ensureClient().getRawJson(s.customPath) }
+            return
+        }
         val version = s.customVersion.ifBlank { "v4" }
         val prefix = s.customPrefix.ifBlank { null }
         run("GET ${prefix.orEmpty()}/$version/jp/ja/mobile/${s.customPath}") {
             ensureClient().getJson(s.customPath, prefix, version, "ja")
+        }
+    }
+
+    /**
+     * POSTs the same arbitrary route, with the body from the form.
+     *
+     * Separate from [fetchCustom] rather than a mode on it, so that reaching a
+     * write endpoint is always a deliberate press. The routes worth probing
+     * here (the web-front page session, for one) only answer to POST.
+     */
+    fun postCustom() {
+        val s = _state.value
+        if (s.customPath.isBlank()) {
+            log("任意エンドポイント (POST)", "パスを入力してください", ok = false)
+            return
+        }
+        val body = s.customBody.ifBlank { "{}" }
+        val version = s.customVersion.ifBlank { "v4" }
+        val prefix = s.customPrefix.ifBlank { null }
+        run("POST ${prefix.orEmpty()}/$version/jp/ja/mobile/${s.customPath}") {
+            ensureClient().postJson(s.customPath, body, prefix, version, "ja")
         }
     }
 

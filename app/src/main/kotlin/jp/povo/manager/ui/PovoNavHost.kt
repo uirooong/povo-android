@@ -11,6 +11,7 @@ import jp.povo.manager.ui.accounts.AccountsScreen
 import jp.povo.manager.devtools.ProtocolSpikeScreen
 import jp.povo.manager.ui.detail.AccountDetailScreen
 import jp.povo.manager.ui.login.LoginScreen
+import jp.povo.manager.ui.payment.PaymentHost
 import jp.povo.manager.ui.settings.SettingsScreen
 import kotlinx.serialization.Serializable
 
@@ -25,6 +26,15 @@ object SettingsRoute
 
 @Serializable
 data class AccountDetailRoute(val accountId: String)
+
+/**
+ * povo's payment-method page for one account.
+ *
+ * The URL travels in the route rather than being looked up again, because it
+ * is the server's own and is already stored with the account.
+ */
+@Serializable
+data class PaymentRoute(val accountId: String)
 
 /** Development-only; reachable from the overflow menu in debug builds. */
 @Serializable
@@ -70,6 +80,13 @@ fun PovoNavHost(
             AccountDetailScreen(
                 accountId = route.accountId,
                 onBack = { navController.popBackStack() },
+                onOpenPayment = { navController.navigate(PaymentRoute(route.accountId)) },
+            )
+        }
+        composable<PaymentRoute> { entry ->
+            PaymentHost(
+                accountId = entry.toRoute<PaymentRoute>().accountId,
+                onDone = { navController.popBackStack() },
             )
         }
     }

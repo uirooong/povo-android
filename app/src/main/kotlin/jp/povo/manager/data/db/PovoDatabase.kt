@@ -105,7 +105,7 @@ interface ExtrasDao {
         BillEntity::class,
         AccountExtrasEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 abstract class PovoDatabase : RoomDatabase() {

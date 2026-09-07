@@ -209,6 +209,22 @@ class PovoAccountClient private constructor(
         locale: String = "ja",
     ): String = call { it.getJson(relativePath, prefix, version, locale) }
 
+    /**
+     * The POST counterpart of [getJson].
+     *
+     * povo-core has had `post_json` all along; it simply was not surfaced here
+     * because nothing needed it. The web-front session route
+     * (`webfront/users/session`) does, and it follows the same localized path
+     * shape, so no core change is required to reach it.
+     */
+    suspend fun postJson(
+        relativePath: String,
+        bodyJson: String,
+        prefix: String? = null,
+        version: String = "v4",
+        locale: String = "ja",
+    ): String = call { it.postJson(relativePath, prefix, version, locale, bodyJson) }
+
     override fun close() = client.close()
 
     companion object {

@@ -1,5 +1,6 @@
 package jp.povo.manager.core.json
 
+import jp.povo.manager.core.model.PaymentMethod
 import jp.povo.manager.core.model.Purchase
 import jp.povo.manager.core.model.PurchasedProduct
 import jp.povo.manager.core.model.Topping
@@ -77,21 +78,61 @@ object QuiltParser {
         }
 
     /**
+     * The account's payment method, from the `profile` page.
+     *
+     * Keyed on the tile type rather than on the presence of a `web_view`
+     * action: the same page hands out `web_view` tiles for the email address,
+     * the postal address and the PIN, so matching on the action would pick up
+     * whichever happened to come first.
+     */
+    fun parsePaymentMethod(raw: String): PaymentMethod? =
+        componentObjects(raw)
+            .firstOrNull { PovoJson.string(it, "type") == TILE_CREDIT_CARD }
+            ?.let { component ->
+                val data = PovoJson.obj(component, "data") ?: component
+                val masked = PovoJson.string(data, "description") ?: return@let null
+                val webView = PovoJson.obj(component, "action")
+                    ?.let { PovoJson.obj(it, "data") }
+                    ?.let { PovoJson.obj(it, "web_view", "webView") }
+                PaymentMethod(
+                    maskedNumber = masked,
+                    title = PovoJson.string(data, "title"),
+                    brandIconUrl = PovoJson.string(data, "cardIcon", "icon"),
+                    updateUrl = webView?.let { PovoJson.string(it, "link", "url") },
+                    exitUrl = webView?.let { PovoJson.string(it, "exit_url", "exitUrl") },
+                    needsXauth = webView
+                        ?.let { PovoJson.bool(it, "needs_xauth", "needsXauth") } ?: false,
+                )
+            }
+
+    /**
      * Flattens `widgets[].components[]` into `(type, data)` pairs.
      *
      * A tile whose `data` is missing falls back to the component itself, since
      * some tiles carry their fields inline rather than nested.
      */
-    private fun components(raw: String): List<Pair<String, JsonObject?>> {
+    private fun components(raw: String): List<Pair<String, JsonObject?>> =
+        componentObjects(raw).mapNotNull { component ->
+            val type = PovoJson.string(component, "type") ?: return@mapNotNull null
+            type to (PovoJson.obj(component, "data") ?: component)
+        }
+
+    /**
+     * The components as whole objects.
+     *
+     * [components] discards everything but `type` and `data`, which is enough
+     * for the tiles that only display text. A tile that also carries an
+     * `action` — the payment method's change link, for one — needs the sibling
+     * fields too.
+     */
+    private fun componentObjects(raw: String): List<JsonObject> {
         val root = PovoJson.parse(raw) ?: return emptyList()
         val widgets = PovoJson.array(root, "widgets", "pageWidgets") ?: return emptyList()
         return widgets
             .mapNotNull { it as? JsonObject }
             .flatMap { widget -> PovoJson.array(widget, "components", "items").orEmpty() }
             .mapNotNull { it as? JsonObject }
-            .mapNotNull { component ->
-                val type = PovoJson.string(component, "type") ?: return@mapNotNull null
-                type to (PovoJson.obj(component, "data") ?: component)
-            }
     }
+
+    private const val TILE_CREDIT_CARD = "tile-credit-card"
 }

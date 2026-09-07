@@ -112,4 +112,55 @@ class QuiltParserTest {
         assertTrue(order.products.isEmpty())
         assertNull(order.title)
     }
+    @Test
+    fun `reads the payment method off the profile page`() {
+        val payment = requireNotNull(QuiltParser.parsePaymentMethod(PROFILE_PAGE))
+
+        assertEquals("xxxx-xxxx-xxxx-1234", payment.maskedNumber)
+        assertEquals("ご利用中のお支払い方法", payment.title)
+        assertEquals(
+            "https://shop.povo.jp/manage/payment-details?webview=1&native=1",
+            payment.updateUrl,
+        )
+        assertEquals("/updateCardSuccess", payment.exitUrl)
+        // Drives whether the page is handed the account's token; the observed
+        // payload sets it, and without it povo shows the page as logged out.
+        assertTrue(payment.needsXauth)
+    }
+
+    @Test
+    fun `does not mistake another web_view tile for the card`() {
+        // The same page hands out web_view tiles for the email address, the
+        // postal address and the PIN. Matching on the action rather than the
+        // tile type would pick up whichever came first — here, the email.
+        val payment = QuiltParser.parsePaymentMethod(PROFILE_PAGE)
+        assertEquals("xxxx-xxxx-xxxx-1234", payment?.maskedNumber)
+    }
+
+    @Test
+    fun `returns null when the page carries no card`() {
+        assertNull(QuiltParser.parsePaymentMethod("""{"widgets":[]}"""))
+        assertNull(QuiltParser.parsePaymentMethod("not json"))
+        assertNull(QuiltParser.parsePaymentMethod(""))
+    }
+
 }
+
+private const val PROFILE_PAGE = """
+{"_id":"profile","widgets":[
+  {"header":{"title":"お客さま情報"},"type":"list","components":[
+    {"type":"tile-telco-profile","data":{"name":"契約者 太郎","subtitle":"090 1234 5678"}},
+    {"type":"tile-nav-right",
+     "action":{"type":"web_view","data":{"web_view":{
+        "link":"https://shop.povo.jp/profile/email?webview=1","exit_url":"/profileUpdateEmailSuccess",
+        "needs_xauth":true}}},
+     "data":{"title":"メールアドレス","desc":"example.user@example.com"}}]},
+  {"header":{"title":"お支払い情報"},"type":"list","components":[
+    {"type":"tile-credit-card",
+     "action":{"type":"web_view","data":{"web_view":{
+        "link":"https://shop.povo.jp/manage/payment-details?webview=1&native=1",
+        "exit_url":"/updateCardSuccess","needs_xauth":true}}},
+     "data":{"title":"ご利用中のお支払い方法","description":"xxxx-xxxx-xxxx-1234",
+             "cardIcon":"https://example.invalid/mastercard.png"}}]}
+]}
+"""

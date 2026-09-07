@@ -56,3 +56,40 @@ data class Purchase(
     val price: String? get() = products.firstOrNull()?.price
     val succeeded: Boolean get() = orderStatus.equals("success", ignoreCase = true)
 }
+
+/**
+ * The account's registered payment method, as the profile page reports it.
+ *
+ * Only the masked number and the change-page link are modelled. The page this
+ * comes from also carries the contractor's name, postal address and PIN mask —
+ * none of which this app needs, so none of which it parses or stores.
+ *
+ * [maskedNumber] arrives already masked by the service (`xxxx-xxxx-xxxx-1234`)
+ * and is kept verbatim: the app never sees a full card number, and re-deriving
+ * the format would only risk disagreeing with the official app.
+ */
+@Serializable
+data class PaymentMethod(
+    /** e.g. `xxxx-xxxx-xxxx-1234`. Already masked upstream. */
+    val maskedNumber: String,
+    /** e.g. `ご利用中のお支払い方法`. */
+    val title: String? = null,
+    /** Card-brand icon served by povo, for display alongside the number. */
+    val brandIconUrl: String? = null,
+    /**
+     * The page that changes the payment method — on povo's own domain, so card
+     * details are entered there and never pass through this app.
+     */
+    val updateUrl: String? = null,
+    /**
+     * Path the page navigates to once the change succeeded. It is the only
+     * completion signal available, so it is what tells the host screen to close
+     * and re-fetch.
+     */
+    val exitUrl: String? = null,
+    /**
+     * Whether the page needs the account's `X-AUTH` token to identify the user.
+     * Observed `true`: without it the page loads but shows nobody logged in.
+     */
+    val needsXauth: Boolean = false,
+)

@@ -207,7 +207,7 @@ private fun Controls(state: ProtocolSpikeViewModel.State, vm: ProtocolSpikeViewM
         OutlinedTextField(
             value = state.customPath,
             onValueChange = vm::onCustomPathChange,
-            label = { Text("path (例: quilt/page/user-plan-details-v2)") },
+            label = { Text("path (/ 始まりは絶対パス。例: /v4/jp/en/mobile/layout/profile/info)") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -227,11 +227,24 @@ private fun Controls(state: ProtocolSpikeViewModel.State, vm: ProtocolSpikeViewM
                 modifier = Modifier.weight(1f),
             )
         }
-        Button(
-            onClick = vm::fetchCustom,
-            enabled = !state.busy,
+        OutlinedTextField(
+            value = state.customBody,
+            onValueChange = vm::onCustomBodyChange,
+            label = { Text("body JSON (POST 用。空なら {} を送る)") },
             modifier = Modifier.fillMaxWidth(),
-        ) { Text("任意エンドポイントを取得") }
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Button(
+                onClick = vm::fetchCustom,
+                enabled = !state.busy,
+                modifier = Modifier.weight(1f),
+            ) { Text("GET") }
+            Button(
+                onClick = vm::postCustom,
+                enabled = !state.busy,
+                modifier = Modifier.weight(1f),
+            ) { Text("POST") }
+        }
         HorizontalDivider(Modifier.padding(vertical = 4.dp))
 
         ButtonGrid(

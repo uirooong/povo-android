@@ -30,6 +30,21 @@ data class AccountEntity(
      * request that carries it while this is still null.
      */
     val activationDate: String? = null,
+    /**
+     * The registered card, already masked by the service
+     * (`xxxx-xxxx-xxxx-1234`). The app never sees a full number.
+     */
+    val paymentMasked: String? = null,
+    /**
+     * povo's own page for changing the payment method, and the path it lands on
+     * when the change succeeded.
+     *
+     * Stored rather than hardcoded because the service hands them out with the
+     * profile page and can move them. The page they point at is on povo's
+     * domain, which is what keeps card entry out of this app.
+     */
+    val paymentUpdateUrl: String? = null,
+    val paymentExitUrl: String? = null,
     /** `YYYY-MM-DD` — the password for this account's invoice PDFs. */
     val birthDate: String?,
     val sortOrder: Int = 0,

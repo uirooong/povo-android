@@ -11,6 +11,7 @@ import jp.povo.manager.core.json.ProfileParser
 import jp.povo.manager.core.json.UsageParser
 import jp.povo.manager.core.model.BillsDocument
 import jp.povo.manager.core.model.DataBucket
+import jp.povo.manager.core.model.PaymentMethod
 import jp.povo.manager.core.model.PlanUsage
 import jp.povo.manager.core.model.Purchase
 import jp.povo.manager.core.model.Topping
@@ -161,6 +162,24 @@ class AccountRepository private constructor(
     /** Exposed so the bills screen can show the PDF password. */
     suspend fun birthDate(id: String): String? = db.accounts().all().firstOrNull { it.id == id }?.birthDate
 
+    /**
+     * A currently-valid token for [id], renewed first if it has expired.
+     *
+     * Only for the payment page, which povo serves as a web view and marks
+     * `needs_xauth` — it identifies the user from the same token the API calls
+     * carry, so it has to be handed over rather than the page being opened
+     * anonymously. Renewed here because a stale token would present the page
+     * as logged out, which looks like a bug rather than an expiry.
+     */
+    suspend fun freshAuthToken(id: String): String? {
+        val session = session(id) ?: return null
+        return withContext(Dispatchers.IO) {
+            val client = clientFor(session)
+            runCatching { ensureFreshToken(client, session) }
+            client.authToken()
+        }
+    }
+
     // ---- refresh -----------------------------------------------------------
 
     /**
@@ -240,11 +259,20 @@ class AccountRepository private constructor(
             val purchases = if (!includeBills) null else runCatching {
                 QuiltParser.parsePurchases(client.getQuiltPageJson(QUILT_ORDERS_PAGE))
             }.getOrNull()
+            // Throttled with the billing endpoints: a registered card changes
+            // about as often as an invoice does. Only the masked number and the
+            // change link are taken from this page — it also carries the
+            // contractor's name, postal address and PIN mask, which the app has
+            // no use for and deliberately does not read.
+            val payment = if (!includeBills) null else runCatching {
+                QuiltParser.parsePaymentMethod(client.getQuiltPageJson(QUILT_PROFILE_PAGE))
+            }.getOrNull()
 
             persist(
                 session, client, profile, usage, bills, toppings, purchases,
                 billsAttempted = includeBills,
                 activationDate = activationDate,
+                payment = payment,
             )
             RefreshOutcome(session.accountId, RefreshResult.OK)
         } catch (e: PovoException) {
@@ -289,6 +317,7 @@ class AccountRepository private constructor(
         purchases: List<Purchase>? = null,
         billsAttempted: Boolean = true,
         activationDate: String? = null,
+        payment: PaymentMethod? = null,
     ) {
         val now = System.currentTimeMillis()
         val existing = db.accounts().all().firstOrNull { it.id == session.accountId }
@@ -300,6 +329,11 @@ class AccountRepository private constructor(
                 // Carried rather than re-read: the profile struct does not
                 // model it, and it is fetched at most once per account.
                 activationDate = activationDate ?: existing?.activationDate,
+                // Carried over on a throttled run, so a refresh that skipped
+                // the profile page does not blank the card on screen.
+                paymentMasked = payment?.maskedNumber ?: existing?.paymentMasked,
+                paymentUpdateUrl = payment?.updateUrl ?: existing?.paymentUpdateUrl,
+                paymentExitUrl = payment?.exitUrl ?: existing?.paymentExitUrl,
                 lastRefreshedAt = now,
                 // Records the attempt, not the outcome: an account with no
                 // invoices parses to null, and treating that as "never fetched"
@@ -402,6 +436,14 @@ class AccountRepository private constructor(
         private const val STAGGER_MAX_MILLIS = 250L
         private const val QUILT_PLAN_PAGE = "user-plan-details-v2"
         private const val QUILT_ORDERS_PAGE = "order-history"
+
+        /**
+         * Carries the payment method. Not in the endpoint list recovered
+         * from the app — the routes that list suggested for this
+         * (`layout/profile/info`, `profile/creditcard/update`) answer 500
+         * and a redirect to a gateway host that no longer resolves.
+         */
+        private const val QUILT_PROFILE_PAGE = "profile"
 
         @Volatile
         private var instance: AccountRepository? = null
