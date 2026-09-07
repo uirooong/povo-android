@@ -4,7 +4,11 @@ name: Release APK
 # release, which is also where the in-app updater looks for it.
 on:
   release:
-    types: [published, created]
+    # `published` only. A release created without first being saved as a draft
+    # fires BOTH `created` and `published`, which started two runs racing to
+    # attach the same asset. `published` on its own still covers publishing a
+    # draft and creating a release outright, and does not fire for a draft.
+    types: [published]
   workflow_dispatch:
     inputs:
       tag:
@@ -13,6 +17,13 @@ on:
 
 permissions:
   contents: write
+
+# Belt and braces now that the double trigger is gone. Deliberately not
+# cancel-in-progress: interrupting a run mid-upload could leave the release with
+# a partial asset, so a second run waits instead.
+concurrency:
+  group: release-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -102,7 +113,11 @@ jobs:
           POVO_KEYSTORE_PASSWORD: ${{ secrets.POVO_KEYSTORE_PASSWORD }}
           POVO_KEY_ALIAS: ${{ secrets.POVO_KEY_ALIAS }}
           POVO_KEY_PASSWORD: ${{ secrets.POVO_KEY_PASSWORD }}
-        run: ./gradlew :app:assembleRelease -Ppovo.abis=arm64-v8a,armeabi-v7a,x86_64
+        run: |
+          TAG="${{ github.event.release.tag_name || inputs.tag }}"
+          # The APK's own version has to match the tag it is published under,
+          # or the in-app updater offers this release forever.
+          ./gradlew :app:assembleRelease -Ppovo.abis=arm64-v8a,armeabi-v7a,x86_64 -Ppovo.versionName="${TAG#v}"
 
       - name: Test and lint
         # After the APK: the uniffi bindings the unit tests compile against are
@@ -118,11 +133,14 @@ jobs:
           cp "$SRC" "$DEST"
           echo "path=$DEST" >> "$GITHUB_OUTPUT"
 
-      - name: Report the signing fingerprint
-        # So a key rotation is visible in the log rather than being discovered
-        # by users whose upgrade is refused.
+      - name: Report the version and signing fingerprint
+        # Both are things whose failure mode is silent and only bites users. A
+        # key rotation would be discovered by an upgrade being refused, and a
+        # version that disagrees with the tag by the updater offering this
+        # release over and over — so both are printed for the record.
         run: |
           BT=$(ls -d "$ANDROID_SDK_ROOT"/build-tools/* | sort -V | tail -1)
+          "$BT/aapt2" dump badging "${{ steps.apk.outputs.path }}" | head -1
           "$BT/apksigner" verify --print-certs "${{ steps.apk.outputs.path }}"
 
       - name: Attach the APK to the release

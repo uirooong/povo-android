@@ -180,7 +180,7 @@ Play ストアには出さないので、APK は GitHub Releases 経由で配る
 | トリガー | ビルド | 成果物の置き場所 |
 |---|---|---|
 | push / PR | debug | Actions の run に artifact として添付 |
-| リリース作成 | release（固定鍵で署名） | そのリリースの assets |
+| リリースの公開 | release（固定鍵で署名） | そのリリースの assets |
 
 debug をそのまま配るのは意図的で、プロトコル検証画面が入っているのはこちらだけ
 （release ビルドでは `BuildConfig.DEBUG` が定数 false になるため、画面ごと R8 に
@@ -211,6 +211,17 @@ storePassword=...
 keyAlias=povo-release
 keyPassword=...
 ```
+
+### バージョン番号
+
+`versionName` / `versionCode` は**リリースのタグから導出する**（`povo.versionName`）。
+手で上げる必要はない。
+
+APK の中身のバージョンがタグと食い違うと、アプリ内更新が「installed の
+`BuildConfig.VERSION_NAME`」とタグを比べて延々と同じ更新を提示し続けるので、
+両者は必ず一致させる必要がある。`versionCode` は同じ文字列から
+`major*10000 + minor*100 + patch` で計算するため、2 つがずれることはない
+（`0.1.0`=100 < `0.10.0`=1000 < `1.0.0`=10000 < `2.3.4`=20304）。
 
 ### 更新チェック先
 

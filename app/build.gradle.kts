@@ -16,8 +16,32 @@ android {
         applicationId = "jp.povo.manager"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "0.1.0"
+        /*
+         * Taken from the release tag in CI, and only defaulted locally.
+         *
+         * These must match the tag the APK is attached to. If they do not, the
+         * in-app updater compares the release's tag against the *installed*
+         * BuildConfig.VERSION_NAME, finds it lower, and offers the same update
+         * forever — installing it changes nothing it can see.
+         *
+         * versionCode is derived from the same string rather than tracked
+         * separately, so the two cannot drift. The packing allows 0..99 for
+         * minor and patch, which is ample and keeps the value monotonic.
+         */
+        // The `v` is stripped here as well as in the workflow, so passing a
+        // raw tag by hand cannot put it into the user-visible version string.
+        val version = providers.gradleProperty("povo.versionName")
+            .getOrElse("0.1.0")
+            .removePrefix("v")
+        versionName = version
+        versionCode = version
+            .takeWhile { it.isDigit() || it == '.' }
+            .split('.')
+            .map { it.toIntOrNull() ?: 0 }
+            .let { parts ->
+                val (major, minor, patch) = List(3) { parts.getOrElse(it) { 0 } }
+                major * 10_000 + minor * 100 + patch
+            }
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // Where the in-app updater looks for releases. A property rather than a
