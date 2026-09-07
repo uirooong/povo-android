@@ -48,6 +48,9 @@ povo 公式アプリの「プロフィール → お支払い方法」に相当�
 
 ## 2. 変更フロー（WebView）— 未完
 
+現状: WebView は開くが `/web/login` → `/logged_out?reset=true` に飛ばされる。
+アプリはそれを検知して理由を表示し、スピナーのまま放置しないようにしてある。
+
 カード入力は `shop.povo.jp` 上で行われるので、**カード番号はアプリを通らない**。
 問題は「その SPA をログイン済み状態で開く」方法。
 
@@ -83,9 +86,9 @@ dispatch(UserService.V4.fetchLoggedInUserDetails(h, params))
 `auth_token` は `storeUrlParams()` で保存されず、一部のアクションが都度読むだけ。
 **ブートガードはこれを見ていない**ので、付けても `/web/login` へ飛ぶ。
 
-**c) ページセッション ← ここが本命・未実装**
+**c) ページセッション ← 当初「本命」と考えたが、扉が違う可能性が高い**
 
-ブートガードが要求しているのはこれ。
+ブートガードのコード形からこれだと考えた。
 
 ```
 POST https://app.povo.jp/v4/jp/ja/webfront/users/session
@@ -142,8 +145,40 @@ function redirectToDeservedPage({sessionToken, defaultRedirectPage, pages}) {
   `layout.page_session.default_redirect_page_when_session_expired`
 - **セッション JWT には `step` クレームがあり、それでどのページへ行くかが決まる**
 
-つまりブロッカーはページセッションで確定。`localStorage.sessionToken` が
-SPA から見える置き場所。
+`localStorage.sessionToken` が SPA から見える置き場所。
+
+### ただし、その後の実測で疑わしくなった（重要）
+
+curl で `POST /api/v3/user-service/v4/jp/ja/webfront/users/session` を叩き、
+**アカウント本来の `X-Deviceid` を付けると認証を通過**して body の検証に進むことを
+確認した（`400101` → `40032 "validate-Step"` → `"validate-Action"` →
+`journey` を外すと `"validate-Journey"`）。必要なのは
+`session_id` / `journey` / `step`(int) / `action` の 4 つ。
+
+しかし `step` と `action` はサーバー設定から導かれる:
+
+```js
+step   = findMatchingPageFromInputPath(path, config.pages).next
+action = extractPathAfterV2(page.key)
+config = appSettings["layout.page_session"][planType]
+```
+
+その設定の実体は **`/v2/*` — 新規申し込みファネル専用**だった:
+
+```json
+"page_session": { "default_redirect_page": "/v2/plan-type",
+                  "pages_to_register_session": ["/v2/email-otp-verification", …] }
+```
+
+`/manage/payment-details` はこの仕組みの対象ではない。したがって
+**ページセッションを作れても目的のページは開かない可能性が高く、
+`/web/login` へのリダイレクトはもっと単純な「web セッション（Cookie）が無い」
+判定から来ていると疑っている。**
+
+静的読解では `isLoggedIn` の供給元まで辿れなかった（条件式の中にしか現れない）。
+ここが SPA バンドルを読む限界で、次は**公式 APK の WebView 層**を読む必要がある
+（`CookieManager` / `addJavascriptInterface` / `evaluateJavascript` あたり）。
+調査依頼は `docs/POVO-CORE-REQUESTS.md` の項目 0 にまとめた。
 
 ### 観測されたリダイレクト連鎖
 

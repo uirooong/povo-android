@@ -86,6 +86,8 @@ fun ProtocolSpikeScreen(vm: ProtocolSpikeViewModel = viewModel()) {
 
 @Composable
 private fun Controls(state: ProtocolSpikeViewModel.State, vm: ProtocolSpikeViewModel) {
+    val clipboard = LocalClipboardManager.current
+
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (state.accounts.isNotEmpty()) {
             Text(
@@ -148,14 +150,18 @@ private fun Controls(state: ProtocolSpikeViewModel.State, vm: ProtocolSpikeViewM
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            // Wraps rather than ellipsizing: 32 hex characters do not fit one
+            // line, and this is a value you need in full to reproduce a request
+            // by hand. The button copies it for the same reason.
             Text(
                 "device_id: ${state.deviceId}",
                 style = MaterialTheme.typography.labelSmall,
                 fontFamily = FontFamily.Monospace,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
+            TextButton(
+                onClick = { clipboard.setText(AnnotatedString(state.deviceId)) },
+            ) { Text("コピー") }
             TextButton(onClick = vm::addAccount) { Text("再生成") }
         }
 
