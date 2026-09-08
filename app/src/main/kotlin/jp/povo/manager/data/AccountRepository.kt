@@ -67,8 +67,20 @@ class AccountRepository private constructor(
     private val settings = SettingsStore(context)
     private val suspensions = SuspensionStore(context)
 
-    private val clients = mutableMapOf<String, PovoAccountClient>()
-    private val clientLock = Any()
+    /**
+     * One client per account, rebuilt when the account's device id changes.
+     *
+     * See [SessionScopedCache] for why the device id has to be part of that
+     * decision — reusing a client across a re-login is what produces 403001.
+     */
+    private val clients = SessionScopedCache { session ->
+        PovoAccountClient.create(
+            accountId = session.accountId,
+            deviceId = session.deviceId,
+            authToken = session.authToken,
+            sin = session.sin,
+        )
+    }
 
     /**
      * Caps how many accounts talk to the service at once.
@@ -162,7 +174,7 @@ class AccountRepository private constructor(
     }
 
     suspend fun removeAccount(id: String) {
-        synchronized(clientLock) { clients.remove(id)?.close() }
+        clients.remove(id)
         sessions.remove(id)
         db.usage().delete(id)
         db.bills().deleteFor(id)
@@ -425,6 +437,14 @@ class AccountRepository private constructor(
      * asked early, so refreshing eagerly would spend a request for nothing.
      */
     private suspend fun ensureFreshToken(client: PovoAccountClient, session: PovoSession) {
+        // The renewed token is bound to the device id that asked for it, so
+        // storing it against a session carrying a different one is what makes a
+        // 403001 permanent. [clients] should never hand back a mismatched
+        // client; this refuses to write the damage if it ever does.
+        if (client.deviceId != session.deviceId) {
+            Log.w(TAG, "device id mismatch for ${session.accountId}; not renewing")
+            return
+        }
         val current = client.authToken() ?: return
         if (!Jwt.isExpired(current)) return
         val renewed = client.refreshToken()
@@ -548,22 +568,10 @@ class AccountRepository private constructor(
 
     // ---- clients -----------------------------------------------------------
 
-    private fun clientFor(session: PovoSession): PovoAccountClient = synchronized(clientLock) {
-        clients.getOrPut(session.accountId) {
-            PovoAccountClient.create(
-                accountId = session.accountId,
-                deviceId = session.deviceId,
-                authToken = session.authToken,
-                sin = session.sin,
-            )
-        }
-    }
+    private fun clientFor(session: PovoSession): PovoAccountClient = clients.get(session)
 
     /** Drops a cached client so the next call picks up a re-authenticated session. */
-    fun invalidateClient(accountId: String) = synchronized(clientLock) {
-        clients.remove(accountId)?.close()
-        Unit
-    }
+    fun invalidateClient(accountId: String) = clients.remove(accountId)
 
     companion object {
         private const val TAG = "PovoRepo"

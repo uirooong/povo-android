@@ -188,7 +188,11 @@ class ProtocolSpikeViewModel(app: Application) : AndroidViewModel(app) {
         sessions.upsert(
             PovoSession(
                 accountId = id,
-                deviceId = s.deviceId,
+                // Taken from the client, not from screen state: the token below
+                // is the client's, and the service binds a token to the device
+                // id that obtained it. Sourcing the two separately is how a
+                // session ends up permanently answering 403001.
+                deviceId = c.deviceId,
                 authToken = token,
                 sin = c.serviceInstanceNumber(),
                 email = s.email.ifBlank { null },
