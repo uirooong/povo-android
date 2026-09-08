@@ -176,15 +176,22 @@ class ProtocolSpikeViewModel(app: Application) : AndroidViewModel(app) {
     private fun refreshAccountList() = _state.update { it.copy(accounts = sessions.load()) }
 
     /** Accounts are keyed by the identifier used to log in, so they stay distinct. */
-    private fun accountIdFor(state: State): String =
+    /**
+     * Matches the login screen: povo's own id for the line, not the address.
+     *
+     * [token] is absent before login, where this only names the throwaway
+     * client and nothing is persisted under it.
+     */
+    private fun accountIdFor(state: State, token: String? = null): String =
         state.activeAccountId
+            ?: token?.let(Jwt::externalId)
             ?: state.email.lowercase().ifBlank { state.phone }.ifBlank { "account-${state.deviceId.take(8)}" }
 
     private suspend fun persistSession(profileLabel: String? = null) {
         val c = client ?: return
         val token = c.authToken() ?: return
         val s = _state.value
-        val id = accountIdFor(s)
+        val id = accountIdFor(s, token)
         sessions.upsert(
             PovoSession(
                 accountId = id,

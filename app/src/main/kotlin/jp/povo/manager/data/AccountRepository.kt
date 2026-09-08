@@ -153,7 +153,39 @@ class AccountRepository private constructor(
      * Seeding a placeholder here means such an account shows up immediately and
      * fills in on the next refresh, instead of silently vanishing from the list.
      */
+    /**
+     * Re-keys accounts that were stored under the address used to sign in.
+     *
+     * The account id used to be the email address. That address can be changed
+     * — this app can change it — so the same line came back as a second account
+     * after a re-login. Accounts are keyed by povo's own `external_id` now, and
+     * anything already stored has to be moved across.
+     *
+     * The Room rows are dropped rather than rewritten: every one of them can be
+     * fetched again, and the next refresh does. The suspension anchor cannot,
+     * so that is moved.
+     */
+    private suspend fun migrateAccountIds() {
+        sessions.load().forEach { session ->
+            val target = session.externalId?.takeIf { it.isNotBlank() } ?: return@forEach
+            if (session.accountId == target) return@forEach
+
+            Log.i(TAG, "re-keying an account onto its external id")
+            suspensions.rekey(session.accountId, target)
+            sessions.upsert(session.copy(accountId = target))
+            sessions.remove(session.accountId)
+            clients.remove(session.accountId)
+
+            db.usage().delete(session.accountId)
+            db.bills().deleteFor(session.accountId)
+            db.extras().delete(session.accountId)
+            db.webPages().deleteFor(session.accountId)
+            db.accounts().delete(session.accountId)
+        }
+    }
+
     suspend fun syncFromSessions() {
+        migrateAccountIds()
         val known = db.accounts().all().map { it.id }.toSet()
         sessions.load().filterNot { it.accountId in known }.forEachIndexed { index, session ->
             db.accounts().upsert(

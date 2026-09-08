@@ -53,6 +53,24 @@ class SuspensionStore(private val context: Context) {
         }
     }
 
+    /**
+     * Moves an anchor to a new account id, keeping whichever is already there.
+     *
+     * Used when an account is re-keyed. The anchor is the reader's own typed-in
+     * date and cannot be fetched again, so a re-key that dropped it would ask
+     * them to look it up a second time.
+     */
+    suspend fun rekey(from: String, to: String) {
+        if (from == to) return
+        edit { current ->
+            val moving = current[from] ?: return@edit current
+            // The destination wins if it somehow already has one; it is the
+            // newer of the two by definition.
+            val merged = if (to in current) current else current + (to to moving)
+            merged - from
+        }
+    }
+
     // Deliberately no "drop anchors for accounts that no longer exist". Room is
     // wiped on any schema change while this store is not, so an anchor with no
     // account is usually the reader's own typed-in date waiting for the account

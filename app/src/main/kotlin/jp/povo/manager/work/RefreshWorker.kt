@@ -32,6 +32,10 @@ class RefreshWorker(context: Context, params: WorkerParameters) :
 
     override suspend fun doWork(): Result {
         val repo = AccountRepository.get(applicationContext)
+        // Also here, not only from the accounts screen: this is what re-keys
+        // accounts stored under an older scheme, and the worker can be the
+        // first thing to run after an update.
+        repo.syncFromSessions()
         // IF_STALE: the data allowance is what needs to be current every 15
         // minutes; the billing timeline and purchase history get picked up
         // about once an hour instead of on every run.

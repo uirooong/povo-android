@@ -148,14 +148,20 @@ class LoginViewModel(app: Application) : AndroidViewModel(app) {
         }
 
         val s = _state.value
-        val accountId = s.email.lowercase().ifBlank { s.phone }
+        val externalId = Jwt.externalId(token.authToken)
+        // povo's own id for the line, not the address used to sign in. The
+        // address can be changed — this app can change it — and keying on it
+        // meant the same line came back as a second account the next time
+        // someone logged in. Falls back to the identifier typed in only when
+        // the token carries no external id.
+        val accountId = externalId ?: s.email.lowercase().ifBlank { s.phone }
         val session = PovoSession(
             accountId = accountId,
             deviceId = deviceId,
             authToken = token.authToken,
             email = s.email.ifBlank { null },
             phoneNo = s.phone.ifBlank { null },
-            externalId = Jwt.externalId(token.authToken),
+            externalId = externalId,
         )
         repo.addAccount(session).getOrThrow()
         _state.update { it.copy(step = Step.DONE, addedAccountId = accountId) }
