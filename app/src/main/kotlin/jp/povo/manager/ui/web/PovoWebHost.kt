@@ -27,6 +27,8 @@ private data class WebTarget(
     val authToken: String?,
     /** The account's own device id; the page needs it beside the token. */
     val deviceId: String?,
+    /** Whether the action asked for the session at all. */
+    val needsXauth: Boolean = false,
 )
 
 /**
@@ -49,6 +51,7 @@ fun PovoWebHost(accountId: String, kind: PovoWebPageKind, onDone: () -> Unit) {
             exitPath = page?.exitUrl,
             authToken = repo.freshAuthToken(accountId),
             deviceId = repo.session(accountId)?.deviceId,
+            needsXauth = page?.needsXauth ?: false,
         )
     }
 
@@ -79,6 +82,7 @@ fun PovoWebHost(accountId: String, kind: PovoWebPageKind, onDone: () -> Unit) {
                 authToken = t.authToken,
                 deviceId = t.deviceId,
                 exitPath = t.exitPath,
+                needsXauth = t.needsXauth,
                 onRotatedToken = { token -> scope.launch { repo.updateAuthToken(accountId, token) } },
                 onDone = onDone,
             )

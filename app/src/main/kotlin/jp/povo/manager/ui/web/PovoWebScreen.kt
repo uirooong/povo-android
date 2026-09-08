@@ -42,9 +42,9 @@ import java.util.concurrent.atomic.AtomicReference
  * All three are web views by povo's design, and that is the point rather than a
  * shortcut: card numbers and MNP paperwork are handled on `shop.povo.jp`, so
  * this app never sees them and has no form of its own to get wrong. Each page
- * is the same one the official app opens and is marked `needs_xauth`, so it is
- * given the account's token — without it the page loads but shows nobody
- * signed in.
+ * is the same one the official app opens. All three are marked `needs_xauth`,
+ * so each is given the account's token — without it the page loads but shows
+ * nobody signed in. A page that does not ask for it is not given one.
  *
  * The session travels in the **query string of the initial request** — see
  * [PovoWebUrl], which assembles the same parameter set the official app does.
@@ -62,6 +62,12 @@ fun PovoWebScreen(
     authToken: String?,
     deviceId: String?,
     exitPath: String?,
+    /**
+     * The action's own `needs_xauth`. False withholds the session from both
+     * channels — it is left out of the URL and the bridge has no token to hand
+     * over — which is what the official app does for such a page.
+     */
+    needsXauth: Boolean,
     onRotatedToken: (String) -> Unit,
     onDone: () -> Unit,
 ) {
@@ -91,8 +97,8 @@ fun PovoWebScreen(
         Column(Modifier.fillMaxSize().padding(padding)) {
             if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
 
-            val target = remember(url, authToken, deviceId, exitPath) {
-                PovoWebUrl.build(url, authToken, deviceId, exitPath)
+            val target = remember(url, authToken, deviceId, exitPath, needsXauth) {
+                PovoWebUrl.build(url, authToken, deviceId, exitPath, needsXauth)
             }
 
             if (!isPovoUrl(url)) {
@@ -136,7 +142,7 @@ fun PovoWebScreen(
                         webView = this
                         configure()
                         addJavascriptInterface(
-                            PovoWebBridge(this, authToken) { currentUrl.get() },
+                            PovoWebBridge(this, authToken.takeIf { needsXauth }) { currentUrl.get() },
                             PovoWebBridge.NAME,
                         )
                         webViewClient = ExitWatchingClient(

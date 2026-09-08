@@ -26,7 +26,7 @@ class PovoWebUrlTest {
 
     @Test
     fun `carries the whole parameter set the page needs`() {
-        val built = PovoWebUrl.build(BASE, TOKEN, DEVICE, EXIT).toUri()
+        val built = PovoWebUrl.build(BASE, TOKEN, DEVICE, EXIT, needsXauth = true).toUri()
 
         // device_id is the one that was missing. The service ties a token to a
         // device: webfront/users/session answers 403 for a token presented with
@@ -42,7 +42,7 @@ class PovoWebUrlTest {
     fun `leaves the server's own parameters alone`() {
         // The link came from povo's profile page; where it already made a
         // choice, that choice wins over ours.
-        val built = PovoWebUrl.build(BASE, TOKEN, DEVICE, EXIT).toUri()
+        val built = PovoWebUrl.build(BASE, TOKEN, DEVICE, EXIT, needsXauth = true).toUri()
 
         assertEquals("1", built.getQueryParameter("webview"))
         assertEquals("true", built.getQueryParameter("reset"))
@@ -57,10 +57,10 @@ class PovoWebUrlTest {
         // The URL is stored from a server response, so a changed payload must
         // not be able to redirect the token somewhere else.
         val elsewhere = "https://evil.example.com/manage/payment-details"
-        assertEquals(elsewhere, PovoWebUrl.build(elsewhere, TOKEN, DEVICE, EXIT))
+        assertEquals(elsewhere, PovoWebUrl.build(elsewhere, TOKEN, DEVICE, EXIT, needsXauth = true))
         // Nor to a host that merely contains the domain.
         val lookalike = "https://povo.jp.evil.example.com/x"
-        assertEquals(lookalike, PovoWebUrl.build(lookalike, TOKEN, DEVICE, EXIT))
+        assertEquals(lookalike, PovoWebUrl.build(lookalike, TOKEN, DEVICE, EXIT, needsXauth = true))
         assertFalse(isPovoUrl(lookalike))
         assertTrue(isPovoUrl("https://shop.povo.jp/x"))
         // http is refused too, so the token cannot go out in clear text.
@@ -71,9 +71,27 @@ class PovoWebUrlTest {
     fun `returns the link untouched when a required value is missing`() {
         // Half a session is worse than none: the page would still bounce, but
         // with the token already spent in a URL.
-        assertEquals(BASE, PovoWebUrl.build(BASE, null, DEVICE, EXIT))
-        assertEquals(BASE, PovoWebUrl.build(BASE, TOKEN, null, EXIT))
-        assertEquals(BASE, PovoWebUrl.build(BASE, "  ", DEVICE, EXIT))
+        assertEquals(BASE, PovoWebUrl.build(BASE, null, DEVICE, EXIT, needsXauth = true))
+        assertEquals(BASE, PovoWebUrl.build(BASE, TOKEN, null, EXIT, needsXauth = true))
+        assertEquals(BASE, PovoWebUrl.build(BASE, "  ", DEVICE, EXIT, needsXauth = true))
+    }
+
+    @Test
+    fun `withholds the session from a page that did not ask for it`() {
+        // The official app injects nothing but return_url when the action
+        // carries no needs_xauth. Every tile observed on the profile page sets
+        // it, so this is about not volunteering the account's token to a page
+        // povo did not mark as needing it.
+        val built = PovoWebUrl.build(BASE, TOKEN, DEVICE, EXIT, needsXauth = false).toUri()
+
+        assertNull(built.getQueryParameter("auth_token"))
+        assertNull(built.getQueryParameter("device_id"))
+        assertNull(built.getQueryParameter("app_version"))
+        assertNull(built.getQueryParameter("use_native_ekyc_api"))
+        // The link's own parameters survive, and the exit path still goes on:
+        // it is how the page reports it finished, not part of the session.
+        assertEquals(EXIT, built.getQueryParameter("return_url"))
+        assertEquals("1", built.getQueryParameter("webview"))
     }
 
     @Test
