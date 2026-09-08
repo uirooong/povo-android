@@ -681,9 +681,34 @@ fun PovoException.describe(): String = when (this) {
     is PovoException.Api -> when (status.toInt()) {
         401 -> "再ログインが必要です"
         429 -> "リクエストが多すぎます。しばらく待ってください"
-        in 500..599 -> "povo 側でエラーが発生しています (HTTP $status)"
-        // povo-core unwraps the `error` and `result` envelopes itself, so this
-        // is already the server's own text rather than a raw JSON body.
-        else -> serverMessage.ifBlank { "エラー (HTTP $status)" }
+        else -> apiDetail()
     }
 }
+
+/**
+ * Everything the service said, in a form someone can quote.
+ *
+ * The status alone is not enough. povo's own support asks for the numeric code,
+ * and an account that fails to refresh is diagnosed by that code and nothing
+ * else — the earlier version dropped it, and dropped the message entirely on a
+ * 5xx, which left a failing line reporting only "HTTP 500".
+ *
+ * The message is shown even when it arrives as a raw JSON body. That is ugly:
+ * povo-core unwraps the `error` and `result` envelopes but not `failure`, so
+ * some bodies come through unopened (see `docs/POVO-CORE-REQUESTS.md` item 0).
+ * Ugly beats hidden here — it is the only information there is, and the code
+ * that identifies the failure may be inside it.
+ */
+private fun PovoException.Api.apiDetail(): String {
+    val said = serverMessage.trim().takeIf(String::isNotEmpty)
+        ?.let { if (it.length > MAX_SERVER_MESSAGE) it.take(MAX_SERVER_MESSAGE) + "…" else it }
+    return listOfNotNull(
+        said ?: if (status.toInt() >= 500) "povo 側でエラーが発生しています" else "エラー",
+        code?.let { "コード $it" },
+        title?.takeIf { it.isNotBlank() && it != said },
+        "HTTP $status",
+    ).joinToString(" / ")
+}
+
+/** Long enough for a sentence, short enough not to swallow a list row. */
+private const val MAX_SERVER_MESSAGE = 160
