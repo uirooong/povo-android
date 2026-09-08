@@ -37,7 +37,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import jp.povo.manager.ui.theme.ThemeMode
 
 /**
- * App-level settings: appearance, version, and updating.
+ * App-level settings: appearance, the 180-day countdown, version, updating.
  *
  * Updating lives here because the app is not distributed through a store, so
  * "check for updates" is a thing a person has to be able to do by hand.
@@ -50,6 +50,9 @@ fun SettingsScreen(
 ) {
     val theme by vm.themeMode.collectAsStateWithLifecycle()
     val update by vm.update.collectAsStateWithLifecycle()
+    val suspension by vm.suspensionEnabled.collectAsStateWithLifecycle()
+    val suspensionNotify by vm.suspensionNotifyEnabled.collectAsStateWithLifecycle()
+    val suspensionDays by vm.suspensionNotifyDays.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -72,6 +75,14 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             ThemeCard(selected = theme, onSelect = vm::setThemeMode)
+            SuspensionSettingsCard(
+                enabled = suspension,
+                notifyEnabled = suspensionNotify,
+                notifyDays = suspensionDays,
+                onEnabledChange = vm::setSuspensionEnabled,
+                onNotifyEnabledChange = vm::setSuspensionNotifyEnabled,
+                onNotifyDaysChange = vm::setSuspensionNotifyDays,
+            )
             VersionCard(vm = vm, state = update)
         }
     }

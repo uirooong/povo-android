@@ -18,6 +18,11 @@ API アクセスは Rust 製の [`uirooong/povo-core`](https://github.com/uirooo
 - **povo 自身のページを認証済みで開く** — お支払い方法 / メールアドレスの変更 /
   契約管理。入力はいずれも povo のドメイン上（カードは GMO のトークン化）で行われ、
   カード番号も新しいメールアドレスもこのアプリを通らない
+- **利用停止までの残り日数** — povo の 180 日ルール（有料トッピング未購入で順次停止）
+  の残り日数と停止予定日。起算日は回線ごとに手入力する（povo の API は期限切れ
+  トッピングを返さないため、自動導出はどうしても推定になる。
+  詳細は `docs/SUSPENSION-180DAYS.md`）。残りわずかになったら通知でき、
+  日数はユーザーが指定する
 - **定期一括更新（WorkManager, 15 分。請求・購入履歴だけは約 1 時間に間引き）と
   ホーム画面ウィジェット（Glance）2 種**
   — 全アカウントの残量を並べる一覧型と、1 アカウントを円グラフで見る 1×1 型
@@ -107,6 +112,7 @@ povo-android/
 └── docs/
     ├── PHASE1-FINDINGS.md   実機で判明した API の挙動
     ├── POVO-WEBVIEW-FINDINGS.md     povo 側 web ページの調査結果
+    ├── SUSPENSION-180DAYS.md        180 日ルールと起算日の扱い
     ├── POVO-CORE-REQUESTS.md        povo-core 側への依頼
     └── samples/             マスク済みの実レスポンス（テストのフィクスチャ）
 ```

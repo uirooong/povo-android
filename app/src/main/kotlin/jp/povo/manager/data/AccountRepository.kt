@@ -23,6 +23,7 @@ import jp.povo.manager.data.db.BillEntity
 import jp.povo.manager.data.db.PovoDatabase
 import jp.povo.manager.data.db.UsageSnapshotEntity
 import jp.povo.manager.data.db.WebPageEntity
+import jp.povo.manager.notify.SuspensionNotifier
 import jp.povo.manager.widget.UsageDonutWidget
 import jp.povo.manager.widget.UsageWidget
 import kotlinx.coroutines.Dispatchers
@@ -31,12 +32,14 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import uniffi.povo_core.PovoException
 import uniffi.povo_core.UserProfile
+import java.time.LocalDate
 import kotlin.random.Random
 
 /**
@@ -58,6 +61,9 @@ class AccountRepository private constructor(
 ) {
 
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+
+    private val settings = SettingsStore(context)
+    private val suspensions = SuspensionStore(context)
 
     private val clients = mutableMapOf<String, PovoAccountClient>()
     private val clientLock = Any()
@@ -161,6 +167,8 @@ class AccountRepository private constructor(
         db.extras().delete(id)
         db.webPages().deleteFor(id)
         db.accounts().delete(id)
+        suspensions.setAnchor(id, null)
+        SuspensionNotifier.cancel(context, id)
     }
 
     fun session(id: String): PovoSession? = sessions.load().firstOrNull { it.accountId == id }
@@ -236,7 +244,7 @@ class AccountRepository private constructor(
                         refresh(session, bills)
                     }
                 }
-            }.awaitAll().also { notifyWidget(it) }
+            }.awaitAll().also { notifyWidget(it); warnAboutSuspension() }
         }
 
     suspend fun refreshAccount(
@@ -245,7 +253,7 @@ class AccountRepository private constructor(
     ): RefreshOutcome {
         val session = session(id) ?: return RefreshOutcome(id, RefreshResult.NOT_FOUND)
         return withContext(Dispatchers.IO) { refresh(session, bills) }
-            .also { notifyWidget(listOf(it)) }
+            .also { notifyWidget(listOf(it)); warnAboutSuspension() }
     }
 
     /**
@@ -259,6 +267,45 @@ class AccountRepository private constructor(
         if (outcomes.any { it.result == RefreshResult.OK }) {
             UsageWidget.refresh(context)
             UsageDonutWidget.refresh(context)
+        }
+    }
+
+    /**
+     * Raises the 180-day warning for any account close enough to its date.
+     *
+     * Placed beside [notifyWidget] and called from the same two points for the
+     * same reason: every way of refreshing should check, not just the periodic
+     * worker. It does not depend on the outcomes — the countdown moves with the
+     * calendar, not with what the service said, so a day on which every request
+     * failed is still a day closer.
+     *
+     * At most one notification per account per suspension date. The refresh
+     * runs every fifteen minutes, so without that the same warning would arrive
+     * ninety-six times a day; recording the date rather than a flag means
+     * buying a topping and re-entering the anchor re-arms it.
+     */
+    private suspend fun warnAboutSuspension() {
+        if (!settings.suspensionEnabled.first()) return
+        if (!settings.suspensionNotifyEnabled.first()) return
+        val within = settings.suspensionNotifyDays.first()
+
+        val accounts = db.accounts().all().associateBy { it.id }
+        val today = LocalDate.now()
+        suspensions.anchors.first().forEach { (accountId, anchor) ->
+            val account = accounts[accountId] ?: return@forEach
+            val forecast = anchor.forecast(today) ?: return@forEach
+            if (forecast.daysLeft > within) return@forEach
+            if (anchor.notifiedFor == forecast.suspendsOn.toString()) return@forEach
+
+            val posted = SuspensionNotifier.notify(
+                context = context,
+                accountId = accountId,
+                label = account.label ?: account.phoneNo ?: accountId,
+                forecast = forecast,
+            )
+            // Only recorded once it could actually have been seen: a warning
+            // dropped for a missing permission must not silence tomorrow's.
+            if (posted) suspensions.markNotified(accountId, forecast.suspendsOn)
         }
     }
 

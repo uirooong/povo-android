@@ -47,6 +47,7 @@ object SpikeRoute
 fun PovoNavHost(
     navController: NavHostController = rememberNavController(),
     startAccountId: String? = null,
+    onStartAccountHandled: () -> Unit = {},
 ) {
     NavHost(navController, startDestination = AccountsRoute) {
         composable<AccountsRoute> {
@@ -106,10 +107,12 @@ fun PovoNavHost(
         }
     }
 
-    // A widget tap opens straight to the account it showed.
+    // A notification tap opens straight to the account it is about. Cleared
+    // once acted on, so returning to the list does not bounce back here.
     if (startAccountId != null) {
         androidx.compose.runtime.LaunchedEffect(startAccountId) {
             navController.navigate(AccountDetailRoute(startAccountId))
+            onStartAccountHandled()
         }
     }
 }

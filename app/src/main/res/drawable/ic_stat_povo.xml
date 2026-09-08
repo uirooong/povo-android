@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The status-bar icon. Same mark as ic_launcher_monochrome, scaled to fill the
+  frame: a launcher icon reserves a wide safe zone for the adaptive mask, and
+  reusing it here would draw a mark two thirds the size of every other icon in
+  the shade. The system reads only the alpha, so the fill colour is arbitrary.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <!-- The mark is already centred on 256,256, so a plain scale about the
+         centre is all that is needed to remove the launcher padding. -->
+    <group
+        android:pivotX="256"
+        android:pivotY="256"
+        android:scaleX="1.635"
+        android:scaleY="1.635">
+        <group
+            android:translateX="-6"
+            android:translateY="4">
+            <path
+                android:fillColor="#FFFFFF"
+                android:pathData="M 256 108 A 104 104 0 0 0 152 212 A 104 104 0 0 0 152 212.00977 L 152 241 L 152 277 L 152 367 C 152 383.066 164.934 396 181 396 C 197.066 396 210 383.066 210 367 L 210 305.27344 A 104 104 0 0 0 256 316 A 104 104 0 0 0 360 212 A 104 104 0 0 0 256 108 z M 256 164 A 48 48 0 0 1 304 212 A 48 48 0 0 1 256 260 A 48 48 0 0 1 208 212 A 48 48 0 0 1 256 164 z" />
+            <path
+                android:fillColor="#FFFFFF"
+                android:pathData="M 326 365 a 23 23 0 1 0 46 0 a 23 23 0 1 0 -46 0 z" />
+        </group>
+    </group>
+</vector>

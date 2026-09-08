@@ -36,6 +36,16 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     val themeMode: StateFlow<ThemeMode> =
         settings.themeMode.stateIn(viewModelScope, SharingStarted.Eagerly, ThemeMode.SYSTEM)
 
+    val suspensionEnabled: StateFlow<Boolean> =
+        settings.suspensionEnabled.stateIn(viewModelScope, SharingStarted.Eagerly, true)
+
+    val suspensionNotifyEnabled: StateFlow<Boolean> =
+        settings.suspensionNotifyEnabled.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    val suspensionNotifyDays: StateFlow<Int> =
+        settings.suspensionNotifyDays
+            .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsStore.DEFAULT_NOTIFY_DAYS)
+
     private val _update = MutableStateFlow<UpdateState>(UpdateState.Idle)
     val update: StateFlow<UpdateState> = _update.asStateFlow()
 
@@ -45,6 +55,15 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     val updateRepo: String = AppUpdater.REPO
 
     fun setThemeMode(mode: ThemeMode) = viewModelScope.launch { settings.setThemeMode(mode) }
+
+    fun setSuspensionEnabled(enabled: Boolean) =
+        viewModelScope.launch { settings.setSuspensionEnabled(enabled) }
+
+    fun setSuspensionNotifyEnabled(enabled: Boolean) =
+        viewModelScope.launch { settings.setSuspensionNotifyEnabled(enabled) }
+
+    fun setSuspensionNotifyDays(days: Int) =
+        viewModelScope.launch { settings.setSuspensionNotifyDays(days) }
 
     fun checkForUpdate() {
         if (_update.value is UpdateState.Checking || _update.value is UpdateState.Downloading) return

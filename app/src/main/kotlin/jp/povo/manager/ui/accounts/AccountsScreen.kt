@@ -164,6 +164,7 @@ private fun AccountRow(card: AccountCard, onClick: () -> Unit) {
             }
 
             val blocked = card.blockedUntil
+            val suspension = card.suspension
             when {
                 card.needsLogin -> Text(
                     "再ログインが必要です",
@@ -177,6 +178,17 @@ private fun AccountRow(card: AccountCard, onClick: () -> Unit) {
                 )
                 card.account.lastError != null -> Text(
                     card.account.lastError!!,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+                // Below the failures — a line that cannot refresh has a more
+                // immediate problem than one that lapses in a fortnight.
+                suspension != null -> Text(
+                    if (suspension.overdue) {
+                        "利用停止の予定日を過ぎています"
+                    } else {
+                        "利用停止まで残り ${suspension.daysLeft} 日"
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                 )

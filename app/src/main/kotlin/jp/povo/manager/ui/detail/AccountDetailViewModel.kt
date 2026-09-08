@@ -10,7 +10,11 @@ import jp.povo.manager.core.model.PovoWebPageKind
 import jp.povo.manager.core.model.Purchase
 import jp.povo.manager.core.model.Topping
 import jp.povo.manager.data.AccountRepository
+import jp.povo.manager.data.SettingsStore
+import jp.povo.manager.data.SuspensionAnchor
+import jp.povo.manager.data.SuspensionStore
 import jp.povo.manager.data.RefreshResult
+import jp.povo.manager.notify.SuspensionNotifier
 import jp.povo.manager.data.db.AccountEntity
 import jp.povo.manager.data.db.BillEntity
 import jp.povo.manager.data.db.UsageSnapshotEntity
@@ -20,6 +24,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -39,6 +44,10 @@ data class DetailState(
      * profile screen lists them in.
      */
     val webPages: List<PovoWebPageKind> = emptyList(),
+    /** The reader's own 180-day anchor, or null when they have not set one. */
+    val suspensionAnchor: SuspensionAnchor? = null,
+    /** Whether the countdown is switched on at all. */
+    val suspensionEnabled: Boolean = true,
 )
 
 /** Everything needed to open an invoice the app cannot itself decrypt. */
@@ -48,14 +57,27 @@ class AccountDetailViewModel(app: Application, private val accountId: String) :
     AndroidViewModel(app) {
 
     private val repo = AccountRepository.get(app)
+    private val settings = SettingsStore(app)
+    private val suspensions = SuspensionStore(app)
+
+    /**
+     * Paired before the main combine: `combine` tops out at five flows, and
+     * these two are one concern — whether to show a countdown, and what to
+     * count from.
+     */
+    private val suspension = combine(
+        suspensions.anchors.map { it[accountId] },
+        settings.suspensionEnabled,
+    ) { anchor, enabled -> anchor to enabled }
 
     val state: StateFlow<DetailState> = combine(
         repo.observeAccount(accountId),
         repo.observeUsage(accountId),
         repo.observeBills(accountId),
-        repo.observeExtras(accountId),
+        combine(repo.observeExtras(accountId), suspension) { extras, s -> extras to s },
         repo.observeWebPages(accountId),
-    ) { account, usage, bills, extras, webPages ->
+    ) { account, usage, bills, (extras, suspensionState), webPages ->
+        val (anchor, suspensionEnabled) = suspensionState
         DetailState(
             account = account,
             usage = usage,
@@ -70,6 +92,8 @@ class AccountDetailViewModel(app: Application, private val accountId: String) :
             webPages = webPages
                 .mapNotNull { row -> runCatching { PovoWebPageKind.valueOf(row.kind) }.getOrNull() }
                 .sorted(),
+            suspensionAnchor = anchor,
+            suspensionEnabled = suspensionEnabled,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DetailState())
 
@@ -139,6 +163,13 @@ class AccountDetailViewModel(app: Application, private val accountId: String) :
             )
             _busy.value = false
         }
+    }
+
+    fun setSuspensionAnchor(anchor: SuspensionAnchor?) = viewModelScope.launch {
+        suspensions.setAnchor(accountId, anchor)
+        // The standing warning is about the old date; leaving it up would
+        // contradict the screen the reader just corrected.
+        SuspensionNotifier.cancel(getApplication(), accountId)
     }
 
     fun remove(onRemoved: () -> Unit) = viewModelScope.launch {

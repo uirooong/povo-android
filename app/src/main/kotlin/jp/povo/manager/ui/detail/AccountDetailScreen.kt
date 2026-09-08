@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.EventBusy
 import androidx.compose.material.icons.filled.MailOutline
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
@@ -60,6 +61,7 @@ import jp.povo.manager.core.model.Purchase
 import jp.povo.manager.core.model.Topping
 import jp.povo.manager.data.db.BillEntity
 import jp.povo.manager.ui.common.formatDate
+import jp.povo.manager.ui.common.formatIsoDate
 import jp.povo.manager.ui.web.description
 import jp.povo.manager.ui.web.label
 import jp.povo.manager.ui.common.relativeTime
@@ -93,6 +95,7 @@ fun AccountDetailScreen(
     val snackbar = remember { SnackbarHostState() }
     val clipboard = LocalClipboardManager.current
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
+    var editingAnchor by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(message) {
         message?.let { snackbar.showSnackbar(it); vm.dismissMessage() }
@@ -123,6 +126,21 @@ fun AccountDetailScreen(
                 }) { Text("開く") }
             },
             dismissButton = { TextButton(onClick = vm::consumePdf) { Text("閉じる") } },
+        )
+    }
+
+    if (editingAnchor) {
+        SuspensionAnchorDialog(
+            existing = state.suspensionAnchor,
+            onDismiss = { editingAnchor = false },
+            onSave = {
+                vm.setSuspensionAnchor(it)
+                editingAnchor = false
+            },
+            onClear = {
+                vm.setSuspensionAnchor(null)
+                editingAnchor = false
+            },
         )
     }
 
@@ -177,6 +195,10 @@ fun AccountDetailScreen(
                 }
 
                 item { ProfileCard(state) }
+
+                if (state.suspensionEnabled) {
+                    item { SuspensionCard(state) { editingAnchor = true } }
+                }
 
                 if (state.webPages.isNotEmpty()) {
                     item {
@@ -274,6 +296,96 @@ private fun ProfileCard(state: DetailState) {
         }
     }
 }
+
+/**
+ * How long this line has before povo's 180-day idle rule suspends it.
+ *
+ * Shows nothing but an invitation until the reader has entered an anchor. That
+ * is the honest state: the service stops reporting the expiry that starts the
+ * clock at the moment it lapses, so the app has no way to work this out for
+ * itself and a guess here would be a guess about someone's phone line.
+ */
+@Composable
+private fun SuspensionCard(state: DetailState, onEdit: () -> Unit) {
+    val forecast = state.suspensionAnchor?.forecast()
+    val urgent = forecast != null && forecast.daysLeft <= URGENT_DAYS
+
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = if (urgent) {
+                MaterialTheme.colorScheme.errorContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerHigh
+            },
+        ),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onEdit),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "利用停止まで",
+                    Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Icon(
+                    Icons.Default.EventBusy,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            if (forecast == null) {
+                Text("未設定", style = MaterialTheme.typography.headlineSmall)
+                Text(
+                    "最後に購入した有料トッピングの購入日と有効期間を登録すると、" +
+                        "利用停止までの残り日数を計算します。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TextButton(onClick = onEdit, contentPadding = PaddingValues(0.dp)) {
+                    Text("起算日を登録")
+                }
+                return@Column
+            }
+
+            Text(
+                if (forecast.overdue) "停止予定日を過ぎています" else "残り ${forecast.daysLeft} 日",
+                style = MaterialTheme.typography.displaySmall,
+                color = if (urgent) {
+                    MaterialTheme.colorScheme.onErrorContainer
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
+            )
+            Text(
+                "${formatIsoDate(forecast.suspendsOn.toString())} 以降、順次利用停止",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            state.suspensionAnchor?.let { anchor ->
+                Text(
+                    buildString {
+                        append(formatIsoDate(anchor.purchaseDate))
+                        append(" 購入")
+                        anchor.durationDays?.let { days -> append("・${days}日間") }
+                        append(" → 有効期限 ")
+                        append(formatIsoDate(anchor.expiryDate))
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Text(
+                "期間内の従量通話料と SMS 送信料の合計が税込 660 円を超えた場合は対象外です" +
+                    "（アプリでは判定していません）。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/** Within a month, the card switches to the error palette. */
+private const val URGENT_DAYS = 30
 
 /**
  * A way into one of povo's own pages.

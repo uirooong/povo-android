@@ -1,5 +1,6 @@
 package jp.povo.manager.ui.common
 
+import jp.povo.manager.core.model.Suspension
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -34,3 +35,14 @@ fun relativeTime(epochMillis: Long, now: Long = System.currentTimeMillis()): Str
 fun formatDate(epochMillis: Long): String = dateFormat.format(Date(epochMillis))
 
 fun formatDateTime(epochMillis: Long): String = dateTimeFormat.format(Date(epochMillis))
+
+/**
+ * A stored `YYYY-MM-DD` as `yyyy/MM/dd`, matching every other date on screen.
+ *
+ * Falls back to the input rather than throwing: these strings come from stored
+ * user input, and a half-written one should render oddly, not crash a card.
+ */
+fun formatIsoDate(iso: String): String {
+    val date = Suspension.parseDate(iso) ?: return iso
+    return "%04d/%02d/%02d".format(date.year, date.monthValue, date.dayOfMonth)
+}

@@ -5,6 +5,7 @@ import android.os.Build
 import android.util.Log
 import jp.povo.manager.core.DeviceId
 import jp.povo.manager.core.PovoAccountClient
+import jp.povo.manager.notify.SuspensionNotifier
 import jp.povo.manager.work.RefreshWorker
 
 class PovoApp : Application() {
@@ -12,6 +13,9 @@ class PovoApp : Application() {
     override fun onCreate() {
         super.onCreate()
         nativeSelfCheck()
+        // Registered up front so the channel exists in system settings whether
+        // or not a warning has ever fired.
+        SuspensionNotifier.ensureChannel(this)
         RefreshWorker.schedule(this)
     }
 
