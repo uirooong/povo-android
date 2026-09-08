@@ -1,6 +1,9 @@
 package jp.povo.manager.ui.web
 
 import android.annotation.SuppressLint
+import android.content.Context
+import android.content.Intent
+import android.widget.Toast
 import android.graphics.Bitmap
 import androidx.core.net.toUri
 import android.util.Log
@@ -151,6 +154,7 @@ fun PovoWebScreen(
                             onNavigate = { currentUrl.set(it) },
                             onSignedOut = { signedOut = true },
                             onRotatedToken = onRotatedToken,
+                            onLeaveApp = { openOutside(context, it) },
                             onExit = onDone,
                         )
                         // No extra headers: the official app issues a plain
@@ -163,6 +167,22 @@ fun PovoWebScreen(
                 onRelease = { it.destroy() },
             )
         }
+    }
+}
+
+/**
+ * Hands a link to whatever app owns it, and says so if nothing does.
+ *
+ * `FLAG_ACTIVITY_NEW_TASK` because the WebView's context is not an activity
+ * task the target can join. A failure is reported rather than swallowed: the
+ * reader tapped something and is owed an answer either way.
+ */
+private fun openOutside(context: Context, url: String) {
+    val intent = Intent(Intent.ACTION_VIEW, url.toUri())
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    runCatching { context.startActivity(intent) }.onFailure {
+        Log.w(TAG, "nothing could open the link", it)
+        Toast.makeText(context, "このリンクを開けるアプリがありません", Toast.LENGTH_SHORT).show()
     }
 }
 
@@ -207,9 +227,17 @@ private class ExitWatchingClient(
     private val onNavigate: (String) -> Unit,
     private val onSignedOut: () -> Unit,
     private val onRotatedToken: (String) -> Unit,
+    private val onLeaveApp: (String) -> Unit,
     private val onExit: () -> Unit,
 ) : WebViewClient() {
 
+    /**
+     * Decides what a navigation means before the engine sees it.
+     *
+     * The web front routes through pseudo-schemes the WebView cannot resolve,
+     * so anything not handled here does not merely misbehave — it becomes
+     * `ERR_UNKNOWN_URL_SCHEME` and the flow stops dead.
+     */
     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
         val target = request.url.toString()
         // Token rotation comes as a navigation to a scheme no WebView can
@@ -218,6 +246,23 @@ private class ExitWatchingClient(
         if (PovoWebUrl.isRotation(target)) return true
         if (isExit(target)) {
             onExit()
+            return true
+        }
+        // "Open this one in a real browser" — the page's own way of sending a
+        // link out of the app, e.g. to support articles.
+        PovoWebUrl.externalUrl(target)?.let {
+            onLeaveApp(it)
+            return true
+        }
+        if (PovoWebUrl.isHandoff(target)) {
+            onLeaveApp(target)
+            return true
+        }
+        if (!PovoWebUrl.isWebPage(target)) {
+            // Refused rather than forwarded: a WebView that passes arbitrary
+            // schemes to the system is how an `intent://` link reaches a
+            // component nobody meant to expose.
+            Log.w(TAG, "refused a navigation to an unsupported scheme")
             return true
         }
         onNavigate(target)

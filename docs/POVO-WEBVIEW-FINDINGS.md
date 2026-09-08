@@ -119,6 +119,28 @@ povo が求めていないページにトークンを差し出さないための
 - JS ブリッジは `loadUrl` の前に登録（`getAppVersion` が無いと
   "Device is not supported" になる）
 
+### 疑似スキームの扱い（`browser://` ほか）
+
+web front は **OS に存在しないスキーム**でアプリに指示を出す。未処理だと
+`ERR_UNKNOWN_URL_SCHEME` になってフローがそこで止まる。
+
+| スキーム | 処理 |
+|---|---|
+| `webfront://…?auth_token=…` | トークンを新セッションとして保存し、遷移をキャンセル |
+| `browser://…` | **`https` に付け替えて外部ブラウザへ**。WebView には読ませない |
+| `tel:` / `mailto:` / `sms:` / `smsto:` | システムに渡す |
+| `http` / `https` | WebView が読む |
+| それ以外 | **拒否**（渡さない） |
+
+`browser://` は公式アプリも全 WebViewClient 共通で横取りしている
+（`webview/g.java:145-149`）。ただし公式は URL 文字列中の `"browser"` を
+**全置換**するので、`browser://x/browser-guide` が `https://x/https-guide` に
+壊れる。本アプリは**先頭のスキームだけ**を置換する。バグの再現に価値はない。
+
+最後の「それ以外は拒否」は意図的。未知のスキームをシステムに素通しするのは、
+`intent://` リンクが本来到達すべきでないコンポーネントを起動する典型的な
+WebView の穴になる。渡すのは連絡手段の 4 つだけに限定している。
+
 ### 古い WebView では崩れる（アプリ側の問題ではない）
 
 エミュレータ（Chromium 83 / 2020年6月）ではアイコンが文字に重なる。

@@ -91,7 +91,52 @@ internal object PovoWebUrl {
         runCatching { url.toUri().scheme.equals(ROTATION_SCHEME, ignoreCase = true) }
             .getOrDefault(false)
 
+    /**
+     * The real URL behind a `browser://` link, or null if this is not one.
+     *
+     * `browser://` is not an OS scheme. It is the web front's way of saying
+     * "this one belongs in a real browser, not in your web view" — the official
+     * app swaps the scheme for `https` and hands it to the system. Left
+     * unhandled the WebView cannot resolve it and the page dies on
+     * `ERR_UNKNOWN_URL_SCHEME`.
+     *
+     * Only the scheme is replaced. The official app replaces every occurrence
+     * of the substring, which corrupts a link whose path also contains
+     * "browser" (`browser://x/browser-guide` becomes `https://x/https-guide`).
+     * That is a bug rather than an intention, and reproducing it would break
+     * exactly the links it breaks for them.
+     */
+    fun externalUrl(url: String): String? {
+        val uri = runCatching { url.toUri() }.getOrNull() ?: return null
+        if (!uri.scheme.equals(BROWSER_SCHEME, ignoreCase = true)) return null
+        val rest = url.substringAfter(':', missingDelimiterValue = "")
+        return if (rest.isEmpty()) null else "https:$rest"
+    }
+
+    /**
+     * Whether a URL is something the WebView itself should load.
+     *
+     * Everything else has to be dealt with before it reaches the engine, which
+     * renders only http(s) and turns the rest into a load error. povo's pages
+     * legitimately link out to `tel:` for support and to the pseudo-schemes
+     * above; an unrecognised scheme is refused rather than forwarded, since a
+     * WebView that hands arbitrary schemes to the system is how `intent://`
+     * links get to launch components that were never meant to be reachable.
+     */
+    fun isWebPage(url: String): Boolean {
+        val scheme = runCatching { url.toUri().scheme }.getOrNull()?.lowercase() ?: return false
+        return scheme == "http" || scheme == "https"
+    }
+
+    /** Schemes handed to the system: contact actions, and nothing that can name a component. */
+    fun isHandoff(url: String): Boolean {
+        val scheme = runCatching { url.toUri().scheme }.getOrNull()?.lowercase() ?: return false
+        return scheme in HANDOFF_SCHEMES
+    }
+
     const val ROTATION_SCHEME = "webfront"
+    private const val BROWSER_SCHEME = "browser"
+    private val HANDOFF_SCHEMES = setOf("tel", "mailto", "sms", "smsto")
 
     private const val AUTH_TOKEN = "auth_token"
     private const val DEVICE_ID = "device_id"

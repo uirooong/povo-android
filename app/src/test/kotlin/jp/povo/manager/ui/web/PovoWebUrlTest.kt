@@ -108,6 +108,53 @@ class PovoWebUrlTest {
         assertNull(PovoWebUrl.rotatedToken("webfront://callback"))
     }
 
+    @Test
+    fun `turns a browser link into one the system can open`() {
+        // Not an OS scheme: the web front uses it to say "this one belongs in a
+        // real browser". Unhandled, the WebView cannot resolve it and the page
+        // dies on ERR_UNKNOWN_URL_SCHEME.
+        assertEquals(
+            "https://povo.jp/support/",
+            PovoWebUrl.externalUrl("browser://povo.jp/support/"),
+        )
+        assertEquals(
+            "https://povo.jp/x?a=1&b=2",
+            PovoWebUrl.externalUrl("browser://povo.jp/x?a=1&b=2"),
+        )
+        assertNull(PovoWebUrl.externalUrl("https://povo.jp/x"))
+        assertNull(PovoWebUrl.externalUrl("webfront://callback"))
+    }
+
+    @Test
+    fun `replaces the scheme only, not every mention of it`() {
+        // The official app swaps the substring wherever it appears, which
+        // corrupts a path that also says "browser". Copying that bug would
+        // break the same links for us.
+        assertEquals(
+            "https://povo.jp/browser-guide",
+            PovoWebUrl.externalUrl("browser://povo.jp/browser-guide"),
+        )
+    }
+
+    @Test
+    fun `sorts schemes into load, hand off, and refuse`() {
+        // Only http(s) reaches the engine. Contact actions go to the system.
+        // Everything else is refused rather than forwarded — passing arbitrary
+        // schemes on is how an intent:// link reaches a component nobody meant
+        // to expose.
+        assertTrue(PovoWebUrl.isWebPage("https://shop.povo.jp/x"))
+        assertTrue(PovoWebUrl.isWebPage("http://example.com"))
+        assertFalse(PovoWebUrl.isWebPage("tel:0120000000"))
+        assertFalse(PovoWebUrl.isWebPage("browser://povo.jp/x"))
+
+        assertTrue(PovoWebUrl.isHandoff("tel:0120000000"))
+        assertTrue(PovoWebUrl.isHandoff("mailto:support@example.com"))
+        assertFalse(PovoWebUrl.isHandoff("https://povo.jp/x"))
+        // The one that must never be handed on.
+        assertFalse(PovoWebUrl.isHandoff("intent://scan/#Intent;scheme=zxing;end"))
+        assertFalse(PovoWebUrl.isWebPage("intent://scan/#Intent;scheme=zxing;end"))
+    }
+
     private companion object {
         const val BASE =
             "https://shop.povo.jp/manage/payment-details?webview=1&reset=true&native=1&update_from=mobile"
