@@ -395,8 +395,14 @@ class AccountRepository private constructor(
             RefreshOutcome(session.accountId, RefreshResult.OK)
         } catch (e: PovoException) {
             val blockUntil = (e as? PovoException.Api)?.blockUntilEpochMillis
+            // 403 counts as well as 401. A token is bound to the device id it
+            // was issued with — presenting it with any other one answers
+            // 403001, measured against a live account — and no amount of
+            // retrying re-pairs them. Classing it as FAILED left the periodic
+            // worker retrying a permanently broken line every fifteen minutes
+            // while the list showed no way to fix it.
             val needsLogin = e is PovoException.Unauthenticated ||
-                (e as? PovoException.Api)?.status?.toInt() == 401
+                (e as? PovoException.Api)?.status?.toInt() in setOf(401, 403)
             db.accounts().markFailed(session.accountId, e.describe(), blockUntil)
             Log.w(TAG, "refresh failed for ${session.accountId}", e)
             RefreshOutcome(
@@ -680,6 +686,9 @@ fun PovoException.describe(): String = when (this) {
     is PovoException.InvalidArgument -> "入力が正しくありません"
     is PovoException.Api -> when (status.toInt()) {
         401 -> "再ログインが必要です"
+        // Must keep saying 再ログイン: the accounts list decides whether to
+        // offer that by looking for the word (AccountCard.needsLogin).
+        403 -> "再ログインが必要です（端末の認証情報が無効です） / ${apiDetail()}"
         429 -> "リクエストが多すぎます。しばらく待ってください"
         else -> apiDetail()
     }
