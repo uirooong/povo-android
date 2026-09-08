@@ -14,6 +14,7 @@ import jp.povo.manager.ui.login.LoginScreen
 import jp.povo.manager.core.model.PovoWebPageKind
 import jp.povo.manager.ui.web.PovoWebHost
 import jp.povo.manager.ui.settings.SettingsScreen
+import jp.povo.manager.ui.store.ToppingStoreScreen
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -38,6 +39,10 @@ data class AccountDetailRoute(val accountId: String)
  */
 @Serializable
 data class PovoWebRoute(val accountId: String, val kind: String)
+
+/** povo's topping catalogue for one account. */
+@Serializable
+data class ToppingStoreRoute(val accountId: String)
 
 /** Development-only; reachable from the overflow menu in debug builds. */
 @Serializable
@@ -87,6 +92,13 @@ fun PovoNavHost(
                 onOpenWebPage = { kind ->
                     navController.navigate(PovoWebRoute(route.accountId, kind.name))
                 },
+                onOpenStore = { navController.navigate(ToppingStoreRoute(route.accountId)) },
+            )
+        }
+        composable<ToppingStoreRoute> { entry ->
+            ToppingStoreScreen(
+                accountId = entry.toRoute<ToppingStoreRoute>().accountId,
+                onBack = { navController.popBackStack() },
             )
         }
         composable<PovoWebRoute> { entry ->

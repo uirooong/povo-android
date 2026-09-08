@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.AddShoppingCart
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.EventBusy
@@ -72,6 +73,7 @@ fun AccountDetailScreen(
     accountId: String,
     onBack: () -> Unit,
     onOpenWebPage: (PovoWebPageKind) -> Unit = {},
+    onOpenStore: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val vm: AccountDetailViewModel = viewModel(
@@ -189,6 +191,8 @@ fun AccountDetailScreen(
             ) {
                 item { UsageCard(state) }
 
+                item { BuyToppingRow(onOpenStore) }
+
                 if (state.toppings.isNotEmpty()) {
                     item { Text("契約中のトッピング", style = MaterialTheme.typography.titleMedium) }
                     items(state.toppings, key = { it.name }) { ToppingCard(it) }
@@ -293,6 +297,34 @@ private fun ProfileCard(state: DetailState) {
             InfoRow("お支払い方法", account.paymentMasked)
             InfoRow("メール", account.email)
             InfoRow("回線番号 (SIN)", account.sin)
+        }
+    }
+}
+
+/** The way into povo's catalogue, kept next to the data the buyer is judging. */
+@Composable
+private fun BuyToppingRow(onClick: () -> Unit) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+        ),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+    ) {
+        Row(
+            Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Icon(Icons.Default.AddShoppingCart, contentDescription = null)
+            Column(Modifier.weight(1f)) {
+                Text("トッピングを購入", style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    "データ・通話トッピングを選んで購入します",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
         }
     }
 }

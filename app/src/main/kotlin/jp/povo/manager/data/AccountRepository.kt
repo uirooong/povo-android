@@ -13,6 +13,8 @@ import jp.povo.manager.core.model.DataBucket
 import jp.povo.manager.core.model.PovoWebPage
 import jp.povo.manager.core.model.PovoWebPageKind
 import jp.povo.manager.core.model.ProfileInfo
+import jp.povo.manager.core.model.ToppingOrder
+import jp.povo.manager.core.model.ToppingSection
 import jp.povo.manager.core.model.PlanUsage
 import jp.povo.manager.core.model.Purchase
 import jp.povo.manager.core.model.Topping
@@ -216,6 +218,43 @@ class AccountRepository private constructor(
                 needsXauth = it.needsXauth,
             )
         }
+
+    /**
+     * The toppings this account can buy right now.
+     *
+     * Read live rather than cached: prices, campaigns and what is on offer are
+     * the service's to decide minute by minute, and a stale price is the one
+     * thing a purchase screen must never show.
+     */
+    suspend fun toppingCatalogue(id: String): List<ToppingSection> {
+        val session = session(id) ?: return emptyList()
+        return withContext(Dispatchers.IO) {
+            val client = clientFor(session)
+            ensureFreshToken(client, session)
+            QuiltParser.parseCatalogue(client.getQuiltPageJson(QUILT_DASHBOARD_PAGE))
+        }
+    }
+
+    /**
+     * Places an order for one topping.
+     *
+     * Returns the service's answer rather than a boolean, because a successful
+     * call is not a completed purchase: an order needing 3-D Secure comes back
+     * with a challenge page and nothing is charged until it is finished. The
+     * caller decides what to do with that.
+     */
+    suspend fun orderTopping(id: String, sku: String): Result<ToppingOrder> {
+        val session = session(id) ?: return Result.failure(IllegalStateException("アカウントが見つかりません"))
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                val client = clientFor(session)
+                ensureFreshToken(client, session)
+                val raw = client.placeToppingOrderJson(sku, PURCHASE_REDIRECT_URL)
+                QuiltParser.parseOrder(raw)
+                    ?: throw IllegalStateException("購入の応答を読み取れませんでした")
+            }.onFailure { Log.w(TAG, "order failed for $id", it) }
+        }
+    }
 
     suspend fun freshAuthToken(id: String): String? {
         val session = session(id) ?: return null
@@ -527,6 +566,21 @@ class AccountRepository private constructor(
         private const val STAGGER_MAX_MILLIS = 250L
         private const val QUILT_PLAN_PAGE = "user-plan-details-v2"
         private const val QUILT_ORDERS_PAGE = "order-history"
+
+        /**
+         * Carries the purchasable catalogue as `addon-section` tiles.
+         * `user-plan-details-v2` does not, despite the name — it reports only
+         * what the line already holds.
+         */
+        private const val QUILT_DASHBOARD_PAGE = "dashboard-v2"
+
+        /**
+         * Where a 3-D Secure challenge lands when it succeeds.
+         *
+         * The official app's own value. The page is watched for rather than
+         * loaded, so it only has to be a URL both sides agree on.
+         */
+        const val PURCHASE_REDIRECT_URL = "https://povo.jp/success"
 
         /**
          * Carries the payment method. Not in the endpoint list recovered

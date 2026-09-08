@@ -6,6 +6,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import uniffi.povo_core.AuthChallenge
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 import uniffi.povo_core.BillEntry
 import uniffi.povo_core.LoginActionsResponse
 import uniffi.povo_core.OtpSendResponse
@@ -177,6 +180,35 @@ class PovoAccountClient private constructor(
         }.getOrElse {
             client.postJson("telco/dashboard", null, "v4", "ja", DASHBOARD_REQUEST_BOOST_ONLY)
         }
+    }
+
+    /**
+     * Buys one topping.
+     *
+     * `shop/orders` is the real purchase route, and it is **v2** — neither the
+     * v4 the rest of the API uses nor the v1 that `subscription/activate` sits
+     * on. That last one is for activating monthly partner subscriptions and
+     * answers 422 `No subscription to activate` for a one-off topping, which is
+     * how this route was found.
+     *
+     * The account is taken from the token; no customer or line id is sent.
+     *
+     * Returns the raw response. A 200 does not mean a completed purchase — see
+     * [jp.povo.manager.core.model.ToppingOrder].
+     *
+     * @param sku the product id from the dashboard catalogue.
+     * @param redirectUrl where the 3-D Secure page should land on success. The
+     *   caller watches for it to know the challenge finished.
+     */
+    suspend fun placeToppingOrderJson(sku: String, redirectUrl: String): String = call { client ->
+        val body = buildJsonObject {
+            put("sku", JsonPrimitive(sku))
+            // Sent explicitly as null: the official app includes the key, and
+            // an absent one has not been tested against the server.
+            put("offer_product", JsonNull)
+            put("redirect_url", JsonPrimitive(redirectUrl))
+        }
+        client.postJson("shop/orders", null, "v2", "ja", body.toString())
     }
 
     /** Escape hatch for routes that do not follow the localized path shape. */

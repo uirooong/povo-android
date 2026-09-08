@@ -3,6 +3,9 @@ package jp.povo.manager.core.json
 import jp.povo.manager.core.model.PovoWebPage
 import jp.povo.manager.core.model.PovoWebPageKind
 import jp.povo.manager.core.model.ProfileInfo
+import jp.povo.manager.core.model.ToppingOrder
+import jp.povo.manager.core.model.ToppingProduct
+import jp.povo.manager.core.model.ToppingSection
 import jp.povo.manager.core.model.Purchase
 import jp.povo.manager.core.model.PurchasedProduct
 import jp.povo.manager.core.model.Topping
@@ -119,6 +122,80 @@ object QuiltParser {
     }
 
     /**
+     * The purchasable catalogue, from the dashboard page.
+     *
+     * Not from `user-plan-details-v2`, which despite its name carries only what
+     * the line already holds and degrades to an empty-state tile when that is
+     * nothing. The catalogue lives on the dashboard as `addon-section` tiles —
+     * the same place the official app reads it.
+     *
+     * Each product appears twice in the payload: once as the list row
+     * (`data`, short display strings) and once as the confirmation sheet
+     * (`action.data.product_popup`, the full name and the 3-D Secure flag).
+     * Both are read, preferring the popup's fuller wording.
+     */
+    fun parseCatalogue(raw: String): List<ToppingSection> =
+        componentObjects(raw)
+            .filter { PovoJson.string(it, "type") == TILE_ADDON_SECTION }
+            .mapNotNull { component ->
+                val data = PovoJson.obj(component, "data") ?: return@mapNotNull null
+                val products = PovoJson.array(data, "items").orEmpty()
+                    .mapNotNull { it as? JsonObject }
+                    .mapNotNull(::product)
+                // Sections that only carry a disclaimer ("no call topping
+                // active") have no items and are not worth a heading.
+                if (products.isEmpty()) return@mapNotNull null
+                ToppingSection(
+                    title = PovoJson.string(PovoJson.obj(data, "sectionHeader"), "title"),
+                    products = products,
+                )
+            }
+
+    private fun product(item: JsonObject): ToppingProduct? {
+        val tile = PovoJson.obj(item, "data")
+        val popup = PovoJson.obj(item, "action")
+            ?.let { PovoJson.obj(it, "data") }
+            ?.let { PovoJson.obj(it, "product_popup", "productPopup") }
+        // The popup's id is the sku the order call wants; the tile's id matches
+        // it, so either will do and whichever exists wins.
+        val id = text(popup, "id") ?: text(tile, "id") ?: return null
+        // Blank is treated as absent throughout: the payload uses empty strings
+        // rather than nulls for fields it has nothing to say about, and an
+        // elvis chain on null alone leaves a nameless row on screen.
+        val name = text(popup, "title")
+            ?: text(PovoJson.obj(tile, "name"), "title")
+            ?: return null
+        return ToppingProduct(
+            id = id,
+            name = name,
+            validity = text(PovoJson.obj(tile, "validity"), "title"),
+            price = text(popup, "price") ?: text(PovoJson.obj(tile, "price"), "title"),
+            requires3ds = PovoJson.bool(popup, "is_3ds_topping", "is3dsTopping") ?: false,
+        )
+    }
+
+    /** [PovoJson.string], with an empty value treated as no value. */
+    private fun text(parent: kotlinx.serialization.json.JsonObject?, vararg names: String): String? =
+        PovoJson.string(parent, *names)?.trim()?.takeIf(String::isNotEmpty)
+
+    /**
+     * The answer to an order.
+     *
+     * `challenge_url` decides everything downstream: with one, nothing has been
+     * charged yet and the buyer still has to authenticate; without one, the
+     * purchase is already done.
+     */
+    fun parseOrder(raw: String): ToppingOrder? {
+        val root = PovoJson.parse(raw) ?: return null
+        val result = PovoJson.obj(root, "result") ?: root
+        return ToppingOrder(
+            challengeUrl = PovoJson.string(result, "challenge_url", "challengeUrl"),
+            orderRef = PovoJson.string(result, "order_ref", "orderRef", "order_id", "orderId"),
+            paymentRef = PovoJson.string(result, "p_ref", "pRef"),
+        )
+    }
+
+    /**
      * Flattens `widgets[].components[]` into `(type, data)` pairs.
      *
      * A tile whose `data` is missing falls back to the component itself, since
@@ -148,6 +225,7 @@ object QuiltParser {
     }
 
     private const val TILE_CREDIT_CARD = "tile-credit-card"
+    private const val TILE_ADDON_SECTION = "addon-section"
 
     /** Other action types on the same page open deep links or a popup. */
     private const val ACTION_WEB_VIEW = "web_view"
