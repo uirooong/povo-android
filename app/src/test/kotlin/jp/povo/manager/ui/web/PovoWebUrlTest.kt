@@ -1,4 +1,4 @@
-package jp.povo.manager.ui.payment
+package jp.povo.manager.ui.web
 
 import androidx.core.net.toUri
 import org.junit.Assert.assertEquals
@@ -22,11 +22,11 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 // Uri needs a framework; see UsageWidgetTest for why the SDK is pinned.
 @Config(sdk = [36], application = android.app.Application::class)
-class PaymentUrlTest {
+class PovoWebUrlTest {
 
     @Test
     fun `carries the whole parameter set the page needs`() {
-        val built = PaymentUrl.build(BASE, TOKEN, DEVICE, EXIT).toUri()
+        val built = PovoWebUrl.build(BASE, TOKEN, DEVICE, EXIT).toUri()
 
         // device_id is the one that was missing. The service ties a token to a
         // device: webfront/users/session answers 403 for a token presented with
@@ -42,7 +42,7 @@ class PaymentUrlTest {
     fun `leaves the server's own parameters alone`() {
         // The link came from povo's profile page; where it already made a
         // choice, that choice wins over ours.
-        val built = PaymentUrl.build(BASE, TOKEN, DEVICE, EXIT).toUri()
+        val built = PovoWebUrl.build(BASE, TOKEN, DEVICE, EXIT).toUri()
 
         assertEquals("1", built.getQueryParameter("webview"))
         assertEquals("true", built.getQueryParameter("reset"))
@@ -57,10 +57,10 @@ class PaymentUrlTest {
         // The URL is stored from a server response, so a changed payload must
         // not be able to redirect the token somewhere else.
         val elsewhere = "https://evil.example.com/manage/payment-details"
-        assertEquals(elsewhere, PaymentUrl.build(elsewhere, TOKEN, DEVICE, EXIT))
+        assertEquals(elsewhere, PovoWebUrl.build(elsewhere, TOKEN, DEVICE, EXIT))
         // Nor to a host that merely contains the domain.
         val lookalike = "https://povo.jp.evil.example.com/x"
-        assertEquals(lookalike, PaymentUrl.build(lookalike, TOKEN, DEVICE, EXIT))
+        assertEquals(lookalike, PovoWebUrl.build(lookalike, TOKEN, DEVICE, EXIT))
         assertFalse(isPovoUrl(lookalike))
         assertTrue(isPovoUrl("https://shop.povo.jp/x"))
         // http is refused too, so the token cannot go out in clear text.
@@ -71,9 +71,9 @@ class PaymentUrlTest {
     fun `returns the link untouched when a required value is missing`() {
         // Half a session is worse than none: the page would still bounce, but
         // with the token already spent in a URL.
-        assertEquals(BASE, PaymentUrl.build(BASE, null, DEVICE, EXIT))
-        assertEquals(BASE, PaymentUrl.build(BASE, TOKEN, null, EXIT))
-        assertEquals(BASE, PaymentUrl.build(BASE, "  ", DEVICE, EXIT))
+        assertEquals(BASE, PovoWebUrl.build(BASE, null, DEVICE, EXIT))
+        assertEquals(BASE, PovoWebUrl.build(BASE, TOKEN, null, EXIT))
+        assertEquals(BASE, PovoWebUrl.build(BASE, "  ", DEVICE, EXIT))
     }
 
     @Test
@@ -82,12 +82,12 @@ class PaymentUrlTest {
         // load error, since no WebView resolves the scheme.
         assertEquals(
             "new-token",
-            PaymentUrl.rotatedToken("webfront://callback?auth_token=new-token"),
+            PovoWebUrl.rotatedToken("webfront://callback?auth_token=new-token"),
         )
-        assertTrue(PaymentUrl.isRotation("webfront://anything"))
-        assertFalse(PaymentUrl.isRotation("https://shop.povo.jp/x?auth_token=t"))
-        assertNull(PaymentUrl.rotatedToken("https://shop.povo.jp/x?auth_token=t"))
-        assertNull(PaymentUrl.rotatedToken("webfront://callback"))
+        assertTrue(PovoWebUrl.isRotation("webfront://anything"))
+        assertFalse(PovoWebUrl.isRotation("https://shop.povo.jp/x?auth_token=t"))
+        assertNull(PovoWebUrl.rotatedToken("https://shop.povo.jp/x?auth_token=t"))
+        assertNull(PovoWebUrl.rotatedToken("webfront://callback"))
     }
 
     private companion object {

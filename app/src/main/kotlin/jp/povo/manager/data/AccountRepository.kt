@@ -10,7 +10,9 @@ import jp.povo.manager.core.json.BillsParser
 import jp.povo.manager.core.json.UsageParser
 import jp.povo.manager.core.model.BillsDocument
 import jp.povo.manager.core.model.DataBucket
-import jp.povo.manager.core.model.PaymentMethod
+import jp.povo.manager.core.model.PovoWebPage
+import jp.povo.manager.core.model.PovoWebPageKind
+import jp.povo.manager.core.model.ProfileInfo
 import jp.povo.manager.core.model.PlanUsage
 import jp.povo.manager.core.model.Purchase
 import jp.povo.manager.core.model.Topping
@@ -20,6 +22,7 @@ import jp.povo.manager.data.db.AccountExtrasEntity
 import jp.povo.manager.data.db.BillEntity
 import jp.povo.manager.data.db.PovoDatabase
 import jp.povo.manager.data.db.UsageSnapshotEntity
+import jp.povo.manager.data.db.WebPageEntity
 import jp.povo.manager.widget.UsageDonutWidget
 import jp.povo.manager.widget.UsageWidget
 import kotlinx.coroutines.Dispatchers
@@ -74,6 +77,9 @@ class AccountRepository private constructor(
     fun observeAccount(id: String): Flow<AccountEntity?> = db.accounts().observe(id)
     fun observeUsage(id: String): Flow<UsageSnapshotEntity?> = db.usage().observe(id)
     fun observeAllUsage(): Flow<List<UsageSnapshotEntity>> = db.usage().observeAll()
+
+    /** The povo pages this account has a way into, in no particular order. */
+    fun observeWebPages(id: String): Flow<List<WebPageEntity>> = db.webPages().observe(id)
     fun observeBills(id: String): Flow<List<BillEntity>> = db.bills().observe(id)
     fun observeExtras(id: String): Flow<AccountExtrasEntity?> = db.extras().observe(id)
 
@@ -153,6 +159,7 @@ class AccountRepository private constructor(
         db.usage().delete(id)
         db.bills().deleteFor(id)
         db.extras().delete(id)
+        db.webPages().deleteFor(id)
         db.accounts().delete(id)
     }
 
@@ -187,6 +194,20 @@ class AccountRepository private constructor(
         invalidateClient(id)
         Log.i(TAG, "adopted a rotated token for $id")
     }
+
+    /**
+     * The stored link for one of povo's own pages, or null if this account's
+     * profile page has not been read yet or did not offer it.
+     */
+    suspend fun webPage(id: String, kind: PovoWebPageKind): PovoWebPage? =
+        db.webPages().get(id, kind.name)?.let {
+            PovoWebPage(
+                kind = kind,
+                link = it.link,
+                exitUrl = it.exitUrl,
+                needsXauth = it.needsXauth,
+            )
+        }
 
     suspend fun freshAuthToken(id: String): String? {
         val session = session(id) ?: return null
@@ -271,19 +292,19 @@ class AccountRepository private constructor(
             val purchases = if (!includeBills) null else runCatching {
                 QuiltParser.parsePurchases(client.getQuiltPageJson(QUILT_ORDERS_PAGE))
             }.getOrNull()
-            // Throttled with the billing endpoints: a registered card changes
-            // about as often as an invoice does. Only the masked number and the
-            // change link are taken from this page — it also carries the
-            // contractor's name, postal address and PIN mask, which the app has
-            // no use for and deliberately does not read.
-            val payment = if (!includeBills) null else runCatching {
-                QuiltParser.parsePaymentMethod(client.getQuiltPageJson(QUILT_PROFILE_PAGE))
+            // Throttled with the billing endpoints: a registered card and the
+            // links to povo's own pages change about as often as an invoice
+            // does. Only the masked number and those links are taken from this
+            // page — it also carries the contractor's name, postal address and
+            // PIN mask, which the app has no use for and does not read.
+            val profileInfo = if (!includeBills) null else runCatching {
+                QuiltParser.parseProfile(client.getQuiltPageJson(QUILT_PROFILE_PAGE))
             }.getOrNull()
 
             persist(
                 session, client, profile, usage, bills, toppings, purchases,
                 billsAttempted = includeBills,
-                payment = payment,
+                profileInfo = profileInfo,
             )
             RefreshOutcome(session.accountId, RefreshResult.OK)
         } catch (e: PovoException) {
@@ -327,7 +348,7 @@ class AccountRepository private constructor(
         toppings: List<Topping>? = null,
         purchases: List<Purchase>? = null,
         billsAttempted: Boolean = true,
-        payment: PaymentMethod? = null,
+        profileInfo: ProfileInfo? = null,
     ) {
         val now = System.currentTimeMillis()
         val existing = db.accounts().all().firstOrNull { it.id == session.accountId }
@@ -338,9 +359,7 @@ class AccountRepository private constructor(
             ).copy(
                 // Carried over on a throttled run, so a refresh that skipped
                 // the profile page does not blank the card on screen.
-                paymentMasked = payment?.maskedNumber ?: existing?.paymentMasked,
-                paymentUpdateUrl = payment?.updateUrl ?: existing?.paymentUpdateUrl,
-                paymentExitUrl = payment?.exitUrl ?: existing?.paymentExitUrl,
+                paymentMasked = profileInfo?.paymentMasked ?: existing?.paymentMasked,
                 lastRefreshedAt = now,
                 // Records the attempt, not the outcome: an account with no
                 // invoices parses to null, and treating that as "never fetched"
@@ -350,6 +369,24 @@ class AccountRepository private constructor(
                 blockedUntil = null,
             ),
         )
+
+        // Replaced only when the page was read. A throttled run leaves the
+        // stored links alone rather than clearing every entry point until the
+        // next full refresh.
+        profileInfo?.let { info ->
+            db.webPages().replaceFor(
+                session.accountId,
+                info.webPages.map { page ->
+                    WebPageEntity(
+                        accountId = session.accountId,
+                        kind = page.kind.name,
+                        link = page.link,
+                        exitUrl = page.exitUrl,
+                        needsXauth = page.needsXauth,
+                    )
+                },
+            )
+        }
 
         if (usage != null) {
             db.usage().upsert(

@@ -1,29 +1,34 @@
-package jp.povo.manager.ui.payment
+package jp.povo.manager.ui.web
 
 import android.net.Uri
 import androidx.core.net.toUri
 import jp.povo.manager.core.PovoProtocol
 
 /**
- * Builds the payment-page URL the way the official app does.
+ * Builds the entry URL for one of povo's own pages, the way the official app
+ * does.
  *
- * The page will not accept a session from a header, a cookie or seeded
- * localStorage — none of which the official app uses either. It reads the
- * session out of the **query string of the initial document request**, and it
- * needs the whole set, not just the token: `device_id` alongside `auth_token`
+ * The same parameter set serves every `needs_xauth` page — the payment method,
+ * the email address, contract management — because the official app applies it
+ * from the action, not from the destination.
+ *
+ * These pages will not accept a session from a header, a cookie or seeded
+ * localStorage — none of which the official app uses either. They read the
+ * session out of the **query string of the initial document request**, and
+ * need the whole set, not just the token: `device_id` alongside `auth_token`
  * is the part that was missing while this app kept landing on `/web/login`.
  * That matches what the service itself says — `webfront/users/session` accepts
  * a token only when `X-Deviceid` is the account's own.
  *
  * Established by static analysis of the official APK 1.70.0-JP
  * (`WebViewFragment.onViewCreated`, applied when an action carries
- * `needs_xauth`); see `docs/PAYMENT-WEBVIEW-FINDINGS.md`.
+ * `needs_xauth`); see `docs/POVO-WEBVIEW-FINDINGS.md`.
  */
-internal object PaymentUrl {
+internal object PovoWebUrl {
 
     /**
      * @param base the `web_view.link` the profile page handed out, already
-     *   carrying `webview=1&reset=true&native=1&update_from=mobile`.
+     *   carrying some of `webview=1&reset=true&native=1` itself.
      * @param exitPath the action's `exit_url`, passed on as `return_url`.
      * @return [base] untouched when it is not a povo URL, or when there is no
      *   token to add — a half-built URL would only fail less obviously.

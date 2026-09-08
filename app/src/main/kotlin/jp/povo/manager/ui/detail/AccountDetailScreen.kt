@@ -9,10 +9,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.MailOutline
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
@@ -51,10 +55,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import jp.povo.manager.core.model.BillStatus
 import jp.povo.manager.core.model.Money
 import jp.povo.manager.core.model.PlanUsage
+import jp.povo.manager.core.model.PovoWebPageKind
 import jp.povo.manager.core.model.Purchase
 import jp.povo.manager.core.model.Topping
 import jp.povo.manager.data.db.BillEntity
 import jp.povo.manager.ui.common.formatDate
+import jp.povo.manager.ui.web.description
+import jp.povo.manager.ui.web.label
 import jp.povo.manager.ui.common.relativeTime
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -62,7 +69,7 @@ import jp.povo.manager.ui.common.relativeTime
 fun AccountDetailScreen(
     accountId: String,
     onBack: () -> Unit,
-    onOpenPayment: () -> Unit = {},
+    onOpenWebPage: (PovoWebPageKind) -> Unit = {},
 ) {
     val context = LocalContext.current
     val vm: AccountDetailViewModel = viewModel(
@@ -144,13 +151,6 @@ fun AccountDetailScreen(
                     }
                 },
                 actions = {
-                    // Only offered once a refresh has read the link off the
-                    // profile page; a dead button would be worse than none.
-                    if (state.account?.paymentUpdateUrl != null) {
-                        IconButton(onClick = onOpenPayment) {
-                            Icon(Icons.Default.CreditCard, contentDescription = "お支払い方法")
-                        }
-                    }
                     IconButton(onClick = vm::refresh, enabled = !busy) {
                         Icon(Icons.Default.Refresh, contentDescription = "更新")
                     }
@@ -177,6 +177,15 @@ fun AccountDetailScreen(
                 }
 
                 item { ProfileCard(state) }
+
+                if (state.webPages.isNotEmpty()) {
+                    item {
+                        Text("povo のページ", style = MaterialTheme.typography.titleMedium)
+                    }
+                    items(state.webPages, key = { it.name }) { kind ->
+                        WebPageRow(kind) { onOpenWebPage(kind) }
+                    }
+                }
 
                 if (state.bills.isNotEmpty()) {
                     item {
@@ -262,6 +271,52 @@ private fun ProfileCard(state: DetailState) {
             InfoRow("お支払い方法", account.paymentMasked)
             InfoRow("メール", account.email)
             InfoRow("回線番号 (SIN)", account.sin)
+        }
+    }
+}
+
+/**
+ * A way into one of povo's own pages.
+ *
+ * These are handling steps this app deliberately does not reimplement — a card
+ * number, an email change, an MNP request — so the row opens povo's page for it
+ * signed in, rather than a form of our own.
+ */
+@Composable
+private fun WebPageRow(kind: PovoWebPageKind, onOpen: () -> Unit) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onOpen),
+    ) {
+        Row(
+            Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Icon(
+                when (kind) {
+                    PovoWebPageKind.EMAIL -> Icons.Default.MailOutline
+                    PovoWebPageKind.PAYMENT -> Icons.Default.CreditCard
+                    PovoWebPageKind.CONTRACT -> Icons.Default.Description
+                },
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Column(Modifier.weight(1f)) {
+                Text(kind.label, style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    kind.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

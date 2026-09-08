@@ -98,14 +98,43 @@ interface ExtrasDao {
     suspend fun delete(accountId: String)
 }
 
+@Dao
+interface WebPageDao {
+    @Query("SELECT * FROM web_pages WHERE accountId = :accountId")
+    fun observe(accountId: String): Flow<List<WebPageEntity>>
+
+    @Query("SELECT * FROM web_pages WHERE accountId = :accountId AND kind = :kind")
+    suspend fun get(accountId: String, kind: String): WebPageEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(pages: List<WebPageEntity>)
+
+    @Query("DELETE FROM web_pages WHERE accountId = :accountId")
+    suspend fun deleteFor(accountId: String)
+
+    /**
+     * Replaces an account's links wholesale.
+     *
+     * Called only when the profile page was actually read: a throttled refresh
+     * skips that request, and merging nothing over the old rows would drop
+     * every entry point until the next full run.
+     */
+    @Transaction
+    suspend fun replaceFor(accountId: String, pages: List<WebPageEntity>) {
+        deleteFor(accountId)
+        insertAll(pages)
+    }
+}
+
 @Database(
     entities = [
         AccountEntity::class,
         UsageSnapshotEntity::class,
         BillEntity::class,
         AccountExtrasEntity::class,
+        WebPageEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 abstract class PovoDatabase : RoomDatabase() {
@@ -113,6 +142,7 @@ abstract class PovoDatabase : RoomDatabase() {
     abstract fun usage(): UsageDao
     abstract fun bills(): BillDao
     abstract fun extras(): ExtrasDao
+    abstract fun webPages(): WebPageDao
 
     companion object {
         @Volatile

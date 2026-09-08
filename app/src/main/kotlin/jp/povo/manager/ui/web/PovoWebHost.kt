@@ -1,4 +1,4 @@
-package jp.povo.manager.ui.payment
+package jp.povo.manager.ui.web
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,11 +16,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import jp.povo.manager.core.model.PovoWebPageKind
 import jp.povo.manager.data.AccountRepository
 import kotlinx.coroutines.launch
 
-/** What [PaymentWebViewScreen] needs, once it has been gathered. */
-private data class PaymentTarget(
+/** What [PovoWebScreen] needs, once it has been gathered. */
+private data class WebTarget(
     val url: String?,
     val exitPath: String?,
     val authToken: String?,
@@ -37,15 +38,15 @@ private data class PaymentTarget(
  * the screen itself.
  */
 @Composable
-fun PaymentHost(accountId: String, onDone: () -> Unit) {
+fun PovoWebHost(accountId: String, kind: PovoWebPageKind, onDone: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val repo = remember(context) { AccountRepository.get(context) }
-    val target by produceState<PaymentTarget?>(initialValue = null, accountId) {
-        val account = repo.accounts().firstOrNull { it.id == accountId }
-        value = PaymentTarget(
-            url = account?.paymentUpdateUrl,
-            exitPath = account?.paymentExitUrl,
+    val target by produceState<WebTarget?>(initialValue = null, accountId, kind) {
+        val page = repo.webPage(accountId, kind)
+        value = WebTarget(
+            url = page?.link,
+            exitPath = page?.exitUrl,
             authToken = repo.freshAuthToken(accountId),
             deviceId = repo.session(accountId)?.deviceId,
         )
@@ -64,7 +65,7 @@ fun PaymentHost(accountId: String, onDone: () -> Unit) {
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    "お支払い方法の変更ページがまだ取得できていません。" +
+                    "${kind.label}のページがまだ取得できていません。" +
                         "アカウントを更新してからもう一度お試しください。",
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center,
@@ -72,7 +73,8 @@ fun PaymentHost(accountId: String, onDone: () -> Unit) {
                 )
             }
 
-            else -> PaymentWebViewScreen(
+            else -> PovoWebScreen(
+                title = kind.label,
                 url = url,
                 authToken = t.authToken,
                 deviceId = t.deviceId,
@@ -83,3 +85,25 @@ fun PaymentHost(accountId: String, onDone: () -> Unit) {
         }
     }
 }
+
+/**
+ * What to call each page on screen.
+ *
+ * Kept here rather than on the enum because two of the three tiles arrive with
+ * no usable label of their own — 契約管理 carries no `title` at all — so these
+ * are this app's words, matching what the official app shows.
+ */
+val PovoWebPageKind.label: String
+    get() = when (this) {
+        PovoWebPageKind.EMAIL -> "メールアドレスの変更"
+        PovoWebPageKind.PAYMENT -> "お支払い方法"
+        PovoWebPageKind.CONTRACT -> "契約管理"
+    }
+
+/** One line saying what the page is for, for the list of entry points. */
+val PovoWebPageKind.description: String
+    get() = when (this) {
+        PovoWebPageKind.EMAIL -> "povo に登録しているメールアドレスを変更します"
+        PovoWebPageKind.PAYMENT -> "クレジットカードなどのお支払い方法を変更します"
+        PovoWebPageKind.CONTRACT -> "プラン詳細の確認、SIM のお手続き、解約や MNP"
+    }

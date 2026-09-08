@@ -1,4 +1,4 @@
-package jp.povo.manager.ui.payment
+package jp.povo.manager.ui.web
 
 import android.os.Handler
 import android.os.Looper

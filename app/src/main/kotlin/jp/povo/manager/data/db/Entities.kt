@@ -35,16 +35,6 @@ data class AccountEntity(
      * (`xxxx-xxxx-xxxx-1234`). The app never sees a full number.
      */
     val paymentMasked: String? = null,
-    /**
-     * povo's own page for changing the payment method, and the path it lands on
-     * when the change succeeded.
-     *
-     * Stored rather than hardcoded because the service hands them out with the
-     * profile page and can move them. The page they point at is on povo's
-     * domain, which is what keeps card entry out of this app.
-     */
-    val paymentUpdateUrl: String? = null,
-    val paymentExitUrl: String? = null,
     /** `YYYY-MM-DD` — the password for this account's invoice PDFs. */
     val birthDate: String?,
     val sortOrder: Int = 0,
@@ -116,4 +106,26 @@ data class AccountExtrasEntity(
     val toppingsJson: String,
     /** Serialised `List<Purchase>`. */
     val purchasesJson: String,
+)
+
+/**
+ * One of povo's own web pages, as this account's profile page linked to it.
+ *
+ * Stored rather than hardcoded because the service hands these links out with
+ * the profile page and can move them — and because they carry a query the
+ * service chose. The pages they point at are on povo's domain, which is what
+ * keeps card and email entry out of this app.
+ *
+ * A row exists only for a page this app has a way into
+ * ([jp.povo.manager.core.model.PovoWebPageKind]); the profile page also links
+ * to a PIN change and a postal address, which are not offered.
+ */
+@Entity(tableName = "web_pages", primaryKeys = ["accountId", "kind"])
+data class WebPageEntity(
+    val accountId: String,
+    /** A [jp.povo.manager.core.model.PovoWebPageKind] name. */
+    val kind: String,
+    val link: String,
+    val exitUrl: String?,
+    val needsXauth: Boolean,
 )

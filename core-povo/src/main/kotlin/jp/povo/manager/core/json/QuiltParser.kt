@@ -1,6 +1,8 @@
 package jp.povo.manager.core.json
 
-import jp.povo.manager.core.model.PaymentMethod
+import jp.povo.manager.core.model.PovoWebPage
+import jp.povo.manager.core.model.PovoWebPageKind
+import jp.povo.manager.core.model.ProfileInfo
 import jp.povo.manager.core.model.Purchase
 import jp.povo.manager.core.model.PurchasedProduct
 import jp.povo.manager.core.model.Topping
@@ -78,32 +80,43 @@ object QuiltParser {
         }
 
     /**
-     * The account's payment method, from the `profile` page.
+     * The profile page: the masked card number, and the web pages it links to.
      *
-     * Keyed on the tile type rather than on the presence of a `web_view`
-     * action: the same page hands out `web_view` tiles for the email address,
-     * the postal address and the PIN, so matching on the action would pick up
-     * whichever happened to come first.
+     * Parsed together because they come from one request and one walk. The page
+     * also carries the contractor's name, postal address and PIN mask; those
+     * are deliberately not read.
      */
-    fun parsePaymentMethod(raw: String): PaymentMethod? =
-        componentObjects(raw)
+    fun parseProfile(raw: String): ProfileInfo {
+        val components = componentObjects(raw)
+
+        val masked = components
             .firstOrNull { PovoJson.string(it, "type") == TILE_CREDIT_CARD }
-            ?.let { component ->
-                val data = PovoJson.obj(component, "data") ?: component
-                val masked = PovoJson.string(data, "description") ?: return@let null
-                val webView = PovoJson.obj(component, "action")
-                    ?.let { PovoJson.obj(it, "data") }
+            ?.let { PovoJson.obj(it, "data") ?: it }
+            ?.let { PovoJson.string(it, "description") }
+
+        val pages = components
+            .mapNotNull { component ->
+                val action = PovoJson.obj(component, "action") ?: return@mapNotNull null
+                if (PovoJson.string(action, "type") != ACTION_WEB_VIEW) return@mapNotNull null
+                val webView = PovoJson.obj(action, "data")
                     ?.let { PovoJson.obj(it, "web_view", "webView") }
-                PaymentMethod(
-                    maskedNumber = masked,
-                    title = PovoJson.string(data, "title"),
-                    brandIconUrl = PovoJson.string(data, "cardIcon", "icon"),
-                    updateUrl = webView?.let { PovoJson.string(it, "link", "url") },
-                    exitUrl = webView?.let { PovoJson.string(it, "exit_url", "exitUrl") },
-                    needsXauth = webView
-                        ?.let { PovoJson.bool(it, "needs_xauth", "needsXauth") } ?: false,
+                    ?: return@mapNotNull null
+                val link = PovoJson.string(webView, "link", "url") ?: return@mapNotNull null
+                val kind = PovoWebPageKind.ofLink(link) ?: return@mapNotNull null
+                PovoWebPage(
+                    kind = kind,
+                    link = link,
+                    exitUrl = PovoJson.string(webView, "exit_url", "exitUrl"),
+                    needsXauth = PovoJson.bool(webView, "needs_xauth", "needsXauth") ?: false,
                 )
             }
+            // Only the component's own action is considered, and the first tile
+            // wins per kind — the PIN tile nests a second web_view under
+            // `data.help` for a support article, which is not a destination.
+            .distinctBy { it.kind }
+
+        return ProfileInfo(paymentMasked = masked, webPages = pages)
+    }
 
     /**
      * Flattens `widgets[].components[]` into `(type, data)` pairs.
@@ -135,4 +148,7 @@ object QuiltParser {
     }
 
     private const val TILE_CREDIT_CARD = "tile-credit-card"
+
+    /** Other action types on the same page open deep links or a popup. */
+    private const val ACTION_WEB_VIEW = "web_view"
 }

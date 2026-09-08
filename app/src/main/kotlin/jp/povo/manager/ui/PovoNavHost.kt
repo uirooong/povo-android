@@ -11,7 +11,8 @@ import jp.povo.manager.ui.accounts.AccountsScreen
 import jp.povo.manager.devtools.ProtocolSpikeScreen
 import jp.povo.manager.ui.detail.AccountDetailScreen
 import jp.povo.manager.ui.login.LoginScreen
-import jp.povo.manager.ui.payment.PaymentHost
+import jp.povo.manager.core.model.PovoWebPageKind
+import jp.povo.manager.ui.web.PovoWebHost
 import jp.povo.manager.ui.settings.SettingsScreen
 import kotlinx.serialization.Serializable
 
@@ -28,13 +29,15 @@ object SettingsRoute
 data class AccountDetailRoute(val accountId: String)
 
 /**
- * povo's payment-method page for one account.
+ * One of povo's own account pages for one account.
  *
- * The URL travels in the route rather than being looked up again, because it
- * is the server's own and is already stored with the account.
+ * [kind] is carried as the enum's name rather than the enum: the navigation
+ * argument has to survive being written into a URL, and a name is the stable
+ * form of that. The link itself is looked up from storage rather than routed,
+ * so it cannot be forged into the route.
  */
 @Serializable
-data class PaymentRoute(val accountId: String)
+data class PovoWebRoute(val accountId: String, val kind: String)
 
 /** Development-only; reachable from the overflow menu in debug builds. */
 @Serializable
@@ -80,14 +83,26 @@ fun PovoNavHost(
             AccountDetailScreen(
                 accountId = route.accountId,
                 onBack = { navController.popBackStack() },
-                onOpenPayment = { navController.navigate(PaymentRoute(route.accountId)) },
+                onOpenWebPage = { kind ->
+                    navController.navigate(PovoWebRoute(route.accountId, kind.name))
+                },
             )
         }
-        composable<PaymentRoute> { entry ->
-            PaymentHost(
-                accountId = entry.toRoute<PaymentRoute>().accountId,
-                onDone = { navController.popBackStack() },
-            )
+        composable<PovoWebRoute> { entry ->
+            val route = entry.toRoute<PovoWebRoute>()
+            val kind = runCatching { PovoWebPageKind.valueOf(route.kind) }.getOrNull()
+            // An unknown kind can only come from a route this app did not
+            // build, so there is nothing to show; going back is the honest
+            // response rather than an error screen.
+            if (kind == null) {
+                androidx.compose.runtime.LaunchedEffect(route.kind) { navController.popBackStack() }
+            } else {
+                PovoWebHost(
+                    accountId = route.accountId,
+                    kind = kind,
+                    onDone = { navController.popBackStack() },
+                )
+            }
         }
     }
 

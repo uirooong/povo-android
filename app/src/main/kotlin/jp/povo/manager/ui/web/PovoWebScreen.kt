@@ -1,4 +1,4 @@
-package jp.povo.manager.ui.payment
+package jp.povo.manager.ui.web
 
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
@@ -36,17 +36,19 @@ import androidx.activity.compose.BackHandler
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * Hosts povo's own payment-method page.
+ * Hosts one of povo's own account pages — the payment method, the email
+ * address, contract management.
  *
- * Card details are entered on `shop.povo.jp`, not here: this app never sees a
- * card number, which is the whole reason the change flow is a web view rather
- * than a form of our own. The page is the same one the official app opens, and
- * it is marked `needs_xauth`, so it is given the account's token — without it
- * the page loads but shows nobody signed in.
+ * All three are web views by povo's design, and that is the point rather than a
+ * shortcut: card numbers and MNP paperwork are handled on `shop.povo.jp`, so
+ * this app never sees them and has no form of its own to get wrong. Each page
+ * is the same one the official app opens and is marked `needs_xauth`, so it is
+ * given the account's token — without it the page loads but shows nobody
+ * signed in.
  *
  * The session travels in the **query string of the initial request** — see
- * [PaymentUrl], which assembles the same parameter set the official app does.
- * A token in a URL is not ideal, but it is the only thing this page accepts,
+ * [PovoWebUrl], which assembles the same parameter set the official app does.
+ * A token in a URL is not ideal, but it is the only thing these pages accept,
  * and the URL never leaves this WebView.
  *
  * [PovoWebBridge] is installed before the load because the page probes for the
@@ -54,7 +56,8 @@ import java.util.concurrent.atomic.AtomicReference
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PaymentWebViewScreen(
+fun PovoWebScreen(
+    title: String,
     url: String,
     authToken: String?,
     deviceId: String?,
@@ -70,13 +73,13 @@ fun PaymentWebViewScreen(
     val currentUrl = remember { AtomicReference(url) }
 
     // Back should walk the page's own history first; leaving the screen on the
-    // first Back would abandon a part-finished card change.
+    // first Back would abandon a part-finished change.
     BackHandler(enabled = webView?.canGoBack() == true) { webView?.goBack() }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("お支払い方法") },
+                title = { Text(title) },
                 navigationIcon = {
                     IconButton(onClick = onDone) {
                         Icon(Icons.Default.Close, contentDescription = "閉じる")
@@ -89,7 +92,7 @@ fun PaymentWebViewScreen(
             if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
 
             val target = remember(url, authToken, deviceId, exitPath) {
-                PaymentUrl.build(url, authToken, deviceId, exitPath)
+                PovoWebUrl.build(url, authToken, deviceId, exitPath)
             }
 
             if (!isPovoUrl(url)) {
@@ -109,15 +112,15 @@ fun PaymentWebViewScreen(
             }
 
             if (signedOut) {
-                // The page bounced to its own login. Saying so beats leaving the
-                // spinner it otherwise ends on: the flow needs a web-front page
-                // session the app cannot create yet (see
-                // docs/PAYMENT-WEBVIEW-FINDINGS.md), and this is the honest
-                // report of that rather than a hang.
+                // The page bounced to its own login and renders nothing
+                // further, so saying so beats the spinner it would otherwise
+                // end on. Reachable if the token or device id no longer
+                // satisfies the service — see docs/POVO-WEBVIEW-FINDINGS.md
+                // for what the page requires.
                 Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
                     Text(
-                        "povo 側のログインが求められたため、この画面からは変更できません。\n" +
-                            "公式アプリまたはブラウザでお支払い方法を変更してください。",
+                        "povo 側のログインが求められたため、この画面からは操作できません。\n" +
+                            "アカウントを更新してから開き直すか、公式アプリでお手続きください。",
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -205,8 +208,8 @@ private class ExitWatchingClient(
         val target = request.url.toString()
         // Token rotation comes as a navigation to a scheme no WebView can
         // resolve, so it has to be swallowed here or it becomes a load error.
-        PaymentUrl.rotatedToken(target)?.let(onRotatedToken)
-        if (PaymentUrl.isRotation(target)) return true
+        PovoWebUrl.rotatedToken(target)?.let(onRotatedToken)
+        if (PovoWebUrl.isRotation(target)) return true
         if (isExit(target)) {
             onExit()
             return true
