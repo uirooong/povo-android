@@ -113,6 +113,7 @@ povo-android/
     ├── PHASE1-FINDINGS.md   実機で判明した API の挙動
     ├── POVO-WEBVIEW-FINDINGS.md     povo 側 web ページの調査結果
     ├── SUSPENSION-180DAYS.md        180 日ルールと起算日の扱い
+    ├── USAGE-HISTORY-FINDINGS.md    使用量履歴 API の調査（機能は見送り）
     ├── POVO-CORE-REQUESTS.md        povo-core 側への依頼
     └── samples/             マスク済みの実レスポンス（テストのフィクスチャ）
 ```
