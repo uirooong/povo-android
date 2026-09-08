@@ -379,7 +379,8 @@ class AccountRepository private constructor(
             ensureFreshToken(client, session)
 
             val profile = client.getProfile()
-            val usage = UsageParser.parse(client.getPlanUsageJson())
+            val usageJson = client.getPlanUsageJson()
+            val usage = UsageParser.parse(usageJson)
             val bills = if (includeBills) BillsParser.parse(client.getBillsInfoJson()) else null
             // Quilt pages are the only source for these. Their failure must not
             // lose an otherwise good usage reading, so they are fetched
@@ -403,6 +404,7 @@ class AccountRepository private constructor(
                 session, client, profile, usage, bills, toppings, purchases,
                 billsAttempted = includeBills,
                 profileInfo = profileInfo,
+                usageJson = usageJson,
             )
             RefreshOutcome(session.accountId, RefreshResult.OK)
         } catch (e: PovoException) {
@@ -461,6 +463,8 @@ class AccountRepository private constructor(
         purchases: List<Purchase>? = null,
         billsAttempted: Boolean = true,
         profileInfo: ProfileInfo? = null,
+        /** The payload [usage] was parsed from; see [UsageSnapshotEntity.rawJson]. */
+        usageJson: String = "",
     ) {
         val now = System.currentTimeMillis()
         val existing = db.accounts().all().firstOrNull { it.id == session.accountId }
@@ -510,7 +514,11 @@ class AccountRepository private constructor(
                     bucketsJson = json.encodeToString(usage.buckets),
                     promotionLine1 = usage.promotionLine1,
                     promotionLine2 = usage.promotionLine2,
-                    rawJson = "",
+                    // Actually stored. The column exists so a misread field can
+                    // be recovered from the reading that produced it, and it
+                    // was being written empty — the safety net the entity
+                    // documents did not exist.
+                    rawJson = usageJson,
                 ),
             )
         }

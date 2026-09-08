@@ -166,9 +166,9 @@ fun ToppingStoreScreen(accountId: String, onBack: () -> Unit) {
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                state.sections.forEach { section ->
+                state.sections.forEachIndexed { index, section ->
                     section.title?.let { title ->
-                        item(key = "h-$title") {
+                        item(key = "h-$index-$title") {
                             Text(
                                 title,
                                 style = MaterialTheme.typography.titleMedium,
@@ -176,7 +176,11 @@ fun ToppingStoreScreen(accountId: String, onBack: () -> Unit) {
                             )
                         }
                     }
-                    items(section.products, key = { "${section.title}-${it.id}" }) { product ->
+                    // Keyed by position, not title: the same product appears in
+                    // several sections (a promoted one is repeated under its own
+                    // category), and two sections sharing a title — or both
+                    // having none — would collide and take the list down.
+                    items(section.products, key = { "$index-${it.id}" }) { product ->
                         ProductRow(product) { vm.select(product) }
                     }
                 }

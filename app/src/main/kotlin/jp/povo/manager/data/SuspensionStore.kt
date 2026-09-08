@@ -31,9 +31,6 @@ class SuspensionStore(private val context: Context) {
     val anchors: Flow<Map<String, SuspensionAnchor>> =
         context.settingsDataStore.data.map { decode(it[ANCHORS_KEY]) }
 
-    suspend fun anchor(accountId: String): SuspensionAnchor? =
-        current().let { it[accountId] }
-
     /** Stores [anchor], or clears the account's entry when it is null. */
     suspend fun setAnchor(accountId: String, anchor: SuspensionAnchor?) {
         edit { current ->
@@ -56,18 +53,12 @@ class SuspensionStore(private val context: Context) {
         }
     }
 
-    /** Drops anchors for accounts that are no longer in the app. */
-    suspend fun retainOnly(accountIds: Set<String>) {
-        edit { current -> current.filterKeys { it in accountIds } }
-    }
-
-    private suspend fun current(): Map<String, SuspensionAnchor> {
-        var loaded: Map<String, SuspensionAnchor> = emptyMap()
-        // edit() is the only read that is ordered against concurrent writes;
-        // a plain first() could be overtaken by one in flight.
-        context.settingsDataStore.edit { loaded = decode(it[ANCHORS_KEY]) }
-        return loaded
-    }
+    // Deliberately no "drop anchors for accounts that no longer exist". Room is
+    // wiped on any schema change while this store is not, so an anchor with no
+    // account is usually the reader's own typed-in date waiting for the account
+    // to come back — sweeping it away would destroy the one thing here that
+    // cannot be fetched again. Removing an account clears its anchor
+    // explicitly; nothing else should.
 
     private suspend fun edit(
         transform: (Map<String, SuspensionAnchor>) -> Map<String, SuspensionAnchor>,

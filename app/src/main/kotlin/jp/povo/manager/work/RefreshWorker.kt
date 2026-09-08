@@ -40,9 +40,12 @@ class RefreshWorker(context: Context, params: WorkerParameters) :
         // The widget is redrawn by AccountRepository.refreshAll itself, so
         // there is nothing to do here.
 
-        val transient = outcomes.count {
-            it.result == RefreshResult.FAILED || it.result == RefreshResult.BLOCKED
-        }
+        // BLOCKED is deliberately not counted. It means the service told us to
+        // back off until a time it chose, and `refresh` already skips such an
+        // account without making a request — so retrying re-runs every *other*
+        // account early for nothing, which is the opposite of honouring the
+        // back-off.
+        val transient = outcomes.count { it.result == RefreshResult.FAILED }
         Log.i(
             TAG,
             "refreshed ${outcomes.size} accounts: " +
