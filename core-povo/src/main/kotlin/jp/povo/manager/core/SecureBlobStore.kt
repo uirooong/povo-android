@@ -28,11 +28,21 @@ import javax.crypto.spec.GCMParameterSpec
  * invalidated whenever the user's device credentials change or the app's data is
  * cleared, and the correct response to that is to ask for a fresh login.
  */
-class SecureBlobStore(context: Context, private val fileName: String) {
+/**
+ * Somewhere small secrets can be kept. Split out from [SecureBlobStore] so the
+ * logic layered on top can be tested without a Keystore.
+ */
+interface BlobStore {
+    fun read(): String?
+    fun write(plaintext: String)
+    fun clear()
+}
+
+class SecureBlobStore(context: Context, private val fileName: String) : BlobStore {
 
     private val file = File(context.filesDir, fileName)
 
-    fun write(plaintext: String) {
+    override fun write(plaintext: String) {
         val cipher = Cipher.getInstance(TRANSFORMATION).apply {
             init(Cipher.ENCRYPT_MODE, secretKey())
         }
@@ -44,7 +54,7 @@ class SecureBlobStore(context: Context, private val fileName: String) {
         check(tmp.renameTo(file)) { "could not replace $fileName" }
     }
 
-    fun read(): String? {
+    override fun read(): String? {
         if (!file.exists()) return null
         return runCatching {
             val blob = file.readBytes()
@@ -62,7 +72,7 @@ class SecureBlobStore(context: Context, private val fileName: String) {
         }.getOrNull()
     }
 
-    fun clear() {
+    override fun clear() {
         file.delete()
     }
 
